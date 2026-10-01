@@ -37,6 +37,9 @@ Findings from inspecting the real sources while writing the adapters. The point 
 - "Screen type" (login, settings, ...) is not labelled in Rico and can't be derived from the
   activity name without noise. Exact screen-type labels come from the synthetic generator (#10).
 - Real-screenshot size: about 100 KB per screen (a 322 MB shard holds 3,312).
+- **`request_id` is not unique per screen** (3,312 screens share only 1,431 values). Keying images
+  or facts by it pairs most screens with another screen's image; the adapter identifies each screen
+  by its position in the file instead, and the build refuses duplicate image ids (PR #80).
 - License on the Hub card: `unknown`, but the real terms restrict redistribution. See
   `docs/data-licenses.md`.
 
