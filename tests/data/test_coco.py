@@ -176,3 +176,79 @@ def test_license_filter_keeps_only_listed_licenses_and_records_the_license():
     assert all(f.facts["license"] == 4 for f in kept if isinstance(f, ImageFacts))
     assert PERMISSIVE_LICENSE_IDS == {4, 5, 7, 8}
     assert not list(iter_coco(inst, licenses=set()))
+
+
+# ---- exact photo choice questions (#68) --------------------------------------------------------
+def choice_instances():
+    """Image 1: three cars + one person (car is the unique most frequent). Image 2: a tie.
+    Image 3: a crowd box. Image 4: a tiny hidden dog next to two cars."""
+    cats = [{"id": i, "name": n, "supercategory": s} for i, (n, s) in enumerate(
+        [("person", "person"), ("car", "vehicle"), ("bus", "vehicle"), ("dog", "animal"),
+         ("cat", "animal"), ("chair", "furniture"), ("cow", "animal")], 1)]  # fmt: skip
+    ann = []
+
+    def add(img, cat, area=3000, crowd=0):
+        ann.append(
+            {
+                "id": len(ann) + 1,
+                "image_id": img,
+                "category_id": cat,
+                "area": area,
+                "iscrowd": crowd,
+            }
+        )
+
+    for _ in range(3):
+        add(1, 2)
+    add(1, 1)
+    for c in (2, 2, 1, 1):
+        add(2, c)  # 2 cars, 2 people: a tie
+    add(3, 2)
+    add(3, 2)
+    add(3, 1, crowd=1)  # noqa: E702
+    add(4, 2)
+    add(4, 2)
+    add(4, 4, area=5)  # a speck-sized dog, annotated but below the area bar
+    return {
+        "categories": cats,
+        "images": [
+            {"id": i, "file_name": f"{i}.jpg", "width": 100, "height": 100} for i in range(1, 5)
+        ],
+        "annotations": ann,
+    }
+
+
+def test_which_present_is_exact():
+    inst = choice_instances()
+    out = list(iter_coco(inst, seed=0))
+    facts = {o.image_id: o.facts for o in out if isinstance(o, ImageFacts)}
+    qs = [o for o in out if isinstance(o, QuestionRecord) and o.task == "coco.which_present"]
+    assert qs, "expected which_present questions"
+    for q in qs:
+        f = facts[q.image_id]
+        opts = list(q.question["criteria"])
+        assert q.answer in f["counts"]  # visibly present
+        assert all(
+            o not in f["present_any"] for o in opts if o != q.answer
+        )  # others annotated nowhere
+        assert 4 <= len(opts) <= 8 and q.answer in opts
+
+
+def test_most_frequent_only_when_unambiguous():
+    out = list(iter_coco(choice_instances(), seed=0))
+    qs = {
+        q.image_id: q
+        for q in out
+        if isinstance(q, QuestionRecord) and q.task == "coco.most_frequent"
+    }
+    assert set(qs) == {"coco:000000000001"}  # tie, crowd box and hidden speck are all excluded
+    assert qs["coco:000000000001"].answer == "car"
+    assert "car" in qs["coco:000000000001"].question["criteria"]
+
+
+def test_choice_per_image_switches_the_tasks_off():
+    inst = choice_instances()
+    none = [o for o in iter_coco(inst, choice_per_image=0) if isinstance(o, QuestionRecord)]
+    assert not any(q.task in ("coco.which_present", "coco.most_frequent") for q in none)
+    one = {q.task for q in iter_coco(inst, choice_per_image=1) if isinstance(q, QuestionRecord)}
+    assert "coco.which_present" in one and "coco.most_frequent" not in one

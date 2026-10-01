@@ -463,5 +463,25 @@
    "Can you see a spinner or an error message?",
    "Is it true that the page is loading or showing an error?"
   ]
+ },
+ "coco.which_present": {
+  "slots": [],
+  "stems": [
+   "Which of these objects appears in the image?",
+   "Which one of the following can you see in this photo?",
+   "Pick the object that is present in the picture.",
+   "Which of these things is shown in the image?",
+   "Exactly one of these objects is in the photo. Which is it?"
+  ]
+ },
+ "coco.most_frequent": {
+  "slots": [],
+  "stems": [
+   "Which kind of object appears most often in the image?",
+   "Which object is the most numerous in this photo?",
+   "What do you see the most of in this picture?",
+   "Which category has the highest count in the image?",
+   "Of all the objects shown, which kind occurs most frequently?"
+  ]
  }
 }

@@ -85,6 +85,7 @@ def test_all_emitted_tasks_are_covered_by_paraphrases():
     tasks |= {t for t in BOOL_TASKS.values() and [v[0] for v in BOOL_TASKS.values()]}
     tasks |= {"rvl.doc_type", "rico.keyboard_open", "rico.element_present"}
     tasks |= {"coco.object_present", "coco.count_bin", "coco.dominant_supercategory"}
+    tasks |= {"coco.which_present", "coco.most_frequent"}
     assert tasks - set(table) == set(), tasks - set(table)
 
 

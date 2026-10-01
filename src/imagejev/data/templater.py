@@ -41,6 +41,8 @@ NONE_OK = frozenset(
         "doc.type",
         "doc.merchant_type",
         "coco.dominant_supercategory",
+        "coco.which_present",  # drop the true option: every remaining one is absent, so it holds
+        "coco.most_frequent",  # drop the top one: none of the remaining is the most frequent
     }
 )
 CONFUSABLE: dict[str, list[set[str]]] = {
