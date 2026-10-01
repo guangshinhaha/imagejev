@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from .backends import Backend
+from .calibration import load_temperatures, save_temperatures
 from .images import CachedEncoder, ImageHandle, load_image
 from .schema import Question, parse_questions, state_to_text, truncate_state
 
@@ -58,12 +60,23 @@ class Model:
         self._encoder = CachedEncoder(backend, max_items=cache_size)
 
     @classmethod
-    def load(cls, name: str = "siglip2-zeroshot", device: str | None = None) -> Model:
-        if name == "siglip2-zeroshot":
-            from .backends.siglip import SigLIPBackend
+    def load(
+        cls,
+        name: str = "siglip2-zeroshot",
+        device: str | None = None,
+        temperatures: str | Path | Mapping[str, float] | None = None,
+    ) -> Model:
+        """Load a model. ``temperatures`` is a dict, or a path to a saved ``temperatures.json``."""
+        if name != "siglip2-zeroshot":
+            raise ValueError(f"unknown model {name!r}; available: 'siglip2-zeroshot'")
+        from .backends.siglip import SigLIPBackend
 
-            return cls(SigLIPBackend(device=device))
-        raise ValueError(f"unknown model {name!r}; available: 'siglip2-zeroshot'")
+        if isinstance(temperatures, str | Path):
+            temperatures = load_temperatures(temperatures)
+        return cls(SigLIPBackend(device=device), temperatures)
+
+    def save_temperatures(self, path: str | Path) -> Path:
+        return save_temperatures(self.temperatures, path)
 
     def encode(self, image: Any) -> ImageHandle:
         """Encode an image once; pass the handle to ``predict`` to skip the vision encoder."""
