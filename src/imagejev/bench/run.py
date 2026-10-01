@@ -156,6 +156,26 @@ def fit_temperatures(
     return fitted
 
 
+def load_model(name: str) -> Any:
+    """``siglip2-zeroshot``, ``smolvlm-500m`` or ``smolvlm-2b``."""
+    if name == "siglip2-zeroshot":
+        from ..api import Model
+
+        model = Model.load(name)
+        model.name = name
+        return model
+    sizes = {
+        "smolvlm-256m": "HuggingFaceTB/SmolVLM-256M-Instruct",
+        "smolvlm-500m": "HuggingFaceTB/SmolVLM-500M-Instruct",
+        "smolvlm-2b": "HuggingFaceTB/SmolVLM-Instruct",
+    }
+    if name in sizes:
+        from .baselines.vlm import SmolVLM
+
+        return SmolVLM(sizes[name])
+    raise ValueError(f"unknown model {name!r}; try siglip2-zeroshot or {sorted(sizes)}")
+
+
 def image_resolver(sources: Iterable[tuple[str | Path, str | Path]]) -> Callable[[str], Path]:
     """Map ``image_id`` to a file from ``(facts.jsonl, image_root)`` pairs."""
     paths: dict[str, Path] = {}
@@ -238,13 +258,10 @@ if __name__ == "__main__":
     ap.add_argument("--fit-on", default="val")
     args = ap.parse_args()
 
-    from ..api import Model
-
     names = args.splits or [p.stem for p in sorted(Path(args.splits_dir).glob("*.jsonl"))]
     files = {n: Path(args.splits_dir) / f"{n}.jsonl" for n in names}
     resolver = image_resolver(tuple(s.rsplit(":", 1)) for s in args.images)  # type: ignore[arg-type]
-    model = Model.load(args.model)
-    model.name = args.model  # type: ignore[attr-defined]
+    model = load_model(args.model)
 
     def show(split: str, n: int) -> None:
         if n % 200 == 0:
