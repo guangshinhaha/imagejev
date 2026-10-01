@@ -59,6 +59,10 @@ def build_rico(
     rows = pq.read_table(parquet, columns=cols).slice(0, limit).to_pylist()
     img_dir = out / "rico" / "images"
     img_dir.mkdir(parents=True, exist_ok=True)
+    # The Hub's ``request_id`` is NOT unique per screen (3,312 screens share only 1,431 values), so
+    # it cannot identify an image. Identify each screen by its position in the file instead.
+    for i, r in enumerate(rows):
+        r["request_id"] = f"r{i:05d}"
     by_id = {str(r["request_id"]): r for r in rows}
     facts_out: list[ImageFacts] = []
     records: list[QuestionRecord] = []
@@ -102,6 +106,19 @@ def load_component(directory: Path) -> tuple[list[QuestionRecord], list[ImageFac
     return list(read_jsonl(directory / "questions.jsonl", QuestionRecord)), facts
 
 
+def check_unique_ids(facts: Iterable[ImageFacts]) -> None:
+    """Raise if two images share an id: they would share a cached feature and a split."""
+    seen: dict[str, int] = {}
+    for f in facts:
+        seen[f.image_id] = seen.get(f.image_id, 0) + 1
+    dup = sorted(i for i, n in seen.items() if n > 1)
+    if dup:
+        raise ValueError(
+            f"{len(dup)} image ids are used by more than one image, e.g. {dup[:3]}; "
+            "an adapter is keying images by a non-unique field"
+        )
+
+
 def assemble(
     records: Sequence[QuestionRecord],
     facts: Sequence[ImageFacts],
@@ -110,6 +127,7 @@ def assemble(
     seed: int = 0,
 ) -> dict[str, Any]:
     """Template, split and write ``splits/`` plus the combined ``facts_all.jsonl``."""
+    check_unique_ids(facts)
     templated = apply_templates(records, facts, seed=seed)
     result = build_splits(templated, facts, seed=seed)
     check_splits(result)

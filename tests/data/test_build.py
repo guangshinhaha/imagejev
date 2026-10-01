@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 from PIL import Image, ImageDraw
@@ -8,6 +9,7 @@ from imagejev.data.build import (
     build_coco,
     build_quality,
     build_rico,
+    check_unique_ids,
     load_component,
 )
 from imagejev.data.coco import PERMISSIVE_LICENSE_IDS
@@ -127,3 +129,41 @@ def test_assemble_writes_splits_and_combined_facts(tmp_path):
 def build_coco_fixture(tmp_path):
     (tmp_path / "instances_val2017.json").write_text(json.dumps(coco_instances(120)))
     return build_coco(tmp_path, tmp_path, limit=None, licenses=None, seed=0)
+
+
+def test_build_rico_gives_every_screen_its_own_id_even_when_request_ids_repeat(tmp_path):
+    """Regression: the Hub's request_id repeats across different screens. The old code keyed saved
+    images by it, so several screens got one image (the last) with each screen's own labels."""
+    import io
+
+    pq = pytest.importorskip("pyarrow.parquet")
+    pa = pytest.importorskip("pyarrow")
+    rows = []
+    for i in range(6):
+        b = io.BytesIO()
+        Image.new("RGB", (30, 50), (i * 40, 0, 0)).save(b, format="PNG")
+        rows.append(
+            {"request_id": "SAME" if i < 4 else f"u{i}",  # four different screens share one id
+             "activity": activity("android.widget.Spinner" if i % 2 else "x.View"),
+             "is_keyboard_deployed": False, "screenshot": {"bytes": b.getvalue(), "path": f"{i}.png"}}
+        )  # fmt: skip
+    pq.write_table(pa.Table.from_pylist(rows), tmp_path / "rico.parquet")
+    recs, facts = build_rico(tmp_path / "rico.parquet", tmp_path, limit=6, seed=0)
+    assert len(facts) == 6 and len({f.image_id for f in facts}) == 6  # one id per screen
+    reds = [Image.open(f.image_path).getpixel((0, 0))[0] for f in facts]
+    assert reds == [0, 40, 80, 120, 160, 200]  # each id's file is that screen's own screenshot
+    check_unique_ids(facts)
+    assert {r.image_id for r in recs} <= {f.image_id for f in facts}
+
+
+def test_check_unique_ids_catches_a_duplicate():
+    f = [
+        ImageFacts("a", "photo", "s", {}),
+        ImageFacts("b", "photo", "s", {}),
+        ImageFacts("a", "photo", "s", {}),
+    ]
+    with pytest.raises(ValueError, match="more than one image"):
+        check_unique_ids(f)
+    check_unique_ids(f[:2])
+    with pytest.raises(ValueError):
+        assemble([], f, Path("/nonexistent"))
