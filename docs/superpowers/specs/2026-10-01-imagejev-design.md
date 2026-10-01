@@ -162,9 +162,26 @@ Principle: use labels that are known to be true wherever possible. The teacher l
 | test-images | unseen images, seen task families |
 | test-tasks | whole task families never seen in training: the main criteria-following test |
 | test-styles | synthetic templates and themes never seen in training (catches memorising the generator) |
-| test-external | one public dataset per domain, zero-shot, chosen after a license check |
+| test-external | three public datasets, zero-shot, never trained on (below) |
 
 Splits are made by source image ID, so no image appears in two splits.
+
+**External test sets (chosen in #22).** Picked for: a license that allows evaluation (checked from
+the Hub metadata, recorded in `docs/data-licenses.md`); labels that convert into typed questions
+with exact answers; real (not synthetic) images; and a size that downloads in minutes.
+
+| Domain | Dataset | License | Typed questions |
+|---|---|---|---|
+| Photos | Oxford-IIIT Pet (`timm/oxford-iiit-pet`, test: 3,669) | CC BY-SA 4.0 | species, breed (4- and 8-way, same-species distractors), "is this a *breed*?" |
+| Documents | CORD-v2 receipts (`naver-clova-ix/cord-v2`, test + validation: 200) | CC BY 4.0 | item count, tax line, service charge, paid in cash |
+| Screenshots | ScreenSpot (`rootsautomation/ScreenSpot`, 610 distinct screenshots) | Apache 2.0 | platform: iOS, Android, macOS, Windows, web |
+
+Checked against the real data: ScreenSpot's `data_source` has eight values that map onto the five
+platforms with no conflicts (199 web, 132 Windows, 115 iOS, 86 Android, 78 macOS). CORD's receipts
+are Indonesian and priced in rupiah, so total-amount questions are **not** used.
+Ruled out: RICO-ScreenQA (inherits Rico's terms), `lmms-lab/VizWiz-VQA` and
+`tanganke/stanford_cars` (no license metadata), Food-101 and CIFAR-100 (license `unknown`),
+DocLayNet (license `other`), WebSight (synthetic, like our own generator).
 
 ### 4.6 Size and licensing
 
@@ -260,5 +277,4 @@ imagejev/
 
 - Final project name (must not use "Jev").
 - License check for each data source (§4.6).
-- Which external zero-shot dataset to use per domain (§4.5).
 - Confirm the 5-point accuracy bar (§7.4) before stage 2 training.

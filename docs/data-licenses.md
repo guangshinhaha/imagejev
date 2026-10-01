@@ -23,7 +23,9 @@ Three separate questions apply to every source:
 | SigLIP 2, ModernBERT-base | Apache 2.0 | Hub card metadata | n/a | n/a | Yes |
 | Qwen2.5-VL-7B-Instruct (teacher) | Apache 2.0 | Hub card metadata | n/a | Teacher labels: yes | Yes |
 | SmolVLM, moondream2 (baselines) | Apache 2.0 | Hub card metadata | n/a | n/a | n/a |
-| External test sets (#22) | not chosen yet | n/a | n/a | n/a | n/a |
+| Oxford-IIIT Pet (external test) | CC BY-SA 4.0 | Hub card metadata | No (evaluation only) | Yes, with attribution and share-alike | n/a (never trained on) |
+| CORD-v2 (external test) | CC BY 4.0 | Hub card metadata | No (evaluation only) | Yes, with attribution | n/a (never trained on) |
+| ScreenSpot (external test) | Apache 2.0 | Hub card metadata | No (evaluation only) | Yes | n/a (never trained on) |
 
 ## COCO 2017 images: the one that matters most
 
@@ -123,8 +125,19 @@ swap sizes without re-checking. Apache 2.0 requires keeping license notices in r
 
 ## External test sets (#22)
 
-Not chosen yet. A candidate must (a) permit evaluation use and (b) have terms recorded in this file
-before it is added. Evaluation-only data is never redistributed unless its license allows it.
+Used for evaluation only, never for training, and their images are not redistributed. The licenses
+below are what each Hub card states; the original sources can differ, so confirm before publishing
+anything derived from them.
+
+| Dataset | Hub license | Notes |
+|---|---|---|
+| Oxford-IIIT Pet (`timm/oxford-iiit-pet`) | CC BY-SA 4.0 | Share-alike applies to adapted data; we publish only IDs and labels. |
+| CORD-v2 (`naver-clova-ix/cord-v2`) | CC BY 4.0 | Real Indonesian receipts. |
+| ScreenSpot (`rootsautomation/ScreenSpot`) | Apache 2.0 | The screenshots show third-party apps, so their copyright is not ours to waive; evaluation use only. |
+
+Candidates rejected on licensing: RICO-ScreenQA (built on Rico, so Rico's terms apply),
+`lmms-lab/VizWiz-VQA` and `tanganke/stanford_cars` (no license stated), Food-101 and CIFAR-100
+(license `unknown`), DocLayNet (license `other`).
 
 ## Open decisions for the first public release
 
