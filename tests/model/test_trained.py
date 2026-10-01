@@ -86,6 +86,7 @@ def test_export_writes_a_self_describing_directory(exported):
         "heads": 4,
         "n_blocks": 2,
         "adapter_hidden": 48,
+        "use_prior": False,
     }
     assert cfg["trained_steps"] == 7 and cfg["selection_score"] == 0.9 and cfg["lora"]["rank"] == 4
 

@@ -112,6 +112,18 @@ option vectors ─► 1 option-mixing self-attention layer (no positional encodi
   equivariant when each level keeps its rank, and reversing the ranks does change the answer.
   Release criterion 4 (shuffle test) applies to `choice` and `bool` only.
 - **bool:** encoded as a single "option" containing only the instructions. Its logit goes through a sigmoid.
+- **Zero-shot prior (added after the pilot).** ModernBERT's features and SigLIP's image features were
+  never aligned, and a 1,000-step pilot on bench v1 showed the fusion model does not learn that
+  alignment in useful time: `bool` loss stayed at ln 2 for 500 steps (SigLIP's own text tower, which
+  *is* aligned with its vision tower, scores AUROC 0.69 on the same questions). The model therefore
+  receives SigLIP's zero-shot logit for every option as an input (exactly the baseline's raw logits:
+  `"<instructions> <option>"` per option, and instructions minus a generic caption for `bool`) and
+  learns a *correction* on top: `logit = prior_gain[type] * prior + head(...)`, with each head's last
+  layer zero-initialised. A fresh model therefore makes the same decision as the zero-shot baseline
+  on every question (checked on 800 real validation questions) and training can only move it from
+  there. Compositional, negated and criteria-following questions, where the zero-shot score is wrong,
+  are what the correction learns. This is also what makes release criterion 1 reachable: the model
+  starts at the baseline instead of having to beat it from scratch.
 - **Heads and losses** (all proper scoring rules):
   - `choice`: softmax over options, log loss.
   - `bool`: sigmoid, binary log loss.
