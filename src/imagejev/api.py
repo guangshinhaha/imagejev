@@ -72,14 +72,24 @@ class Model:
         device: str | None = None,
         temperatures: str | Path | Mapping[str, float] | None = None,
     ) -> Model:
-        """Load a model. ``temperatures`` is a dict, or a path to a saved ``temperatures.json``."""
-        if name != "siglip2-zeroshot":
-            raise ValueError(f"unknown model {name!r}; available: 'siglip2-zeroshot'")
-        from .backends.siglip import SigLIPBackend
+        """Load a model by name, or a directory made by ``export_model``.
 
+        ``temperatures`` is a dict or a ``temperatures.json`` path; if omitted, a model
+        directory's own calibration is used."""
         if isinstance(temperatures, str | Path):
             temperatures = load_temperatures(temperatures)
-        return cls(SigLIPBackend(device=device), temperatures)
+        if name == "siglip2-zeroshot":
+            from .backends.siglip import SigLIPBackend
+
+            return cls(SigLIPBackend(device=device), temperatures)
+        if (Path(name) / "config.json").exists():  # a directory written by export_model
+            from .backends.trained import load_trained
+
+            backend, saved = load_trained(name, device=device)
+            return cls(backend, temperatures if temperatures is not None else saved)
+        raise ValueError(
+            f"unknown model {name!r}; use 'siglip2-zeroshot' or a directory made by export_model"
+        )
 
     def save_temperatures(self, path: str | Path) -> Path:
         return save_temperatures(self.temperatures, path)

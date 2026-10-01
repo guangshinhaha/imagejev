@@ -173,7 +173,15 @@ def load_model(name: str) -> Any:
         from .baselines.vlm import SmolVLM
 
         return SmolVLM(sizes[name])
-    raise ValueError(f"unknown model {name!r}; try siglip2-zeroshot or {sorted(sizes)}")
+    if (Path(name) / "config.json").exists():  # an exported imagejev model directory
+        from ..api import Model
+
+        model = Model.load(name)
+        model.name = f"imagejev:{Path(name).name}"
+        return model
+    raise ValueError(
+        f"unknown model {name!r}; try siglip2-zeroshot, {sorted(sizes)} or a model dir"
+    )
 
 
 def image_resolver(sources: Iterable[tuple[str | Path, str | Path]]) -> Callable[[str], Path]:
@@ -256,6 +264,11 @@ if __name__ == "__main__":
     ap.add_argument("--out", required=True)
     ap.add_argument("--splits", nargs="*", default=None, help="default: every <split>.jsonl")
     ap.add_argument("--fit-on", default="val")
+    ap.add_argument(
+        "--save-calibration",
+        action="store_true",
+        help="write the fitted temperatures into the model directory (for exported models)",
+    )
     args = ap.parse_args()
 
     names = args.splits or [p.stem for p in sorted(Path(args.splits_dir).glob("*.jsonl"))]
@@ -268,4 +281,7 @@ if __name__ == "__main__":
             print(f"{split}: {n} images", flush=True)
 
     run_benchmark(model, files, resolver, args.out, fit_on=args.fit_on, progress=show)
+    if args.save_calibration:
+        path = model.save_temperatures(args.model)
+        print(f"saved calibration to {path}")
     print(f"wrote {args.out}/report.md")
