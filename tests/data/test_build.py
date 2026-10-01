@@ -1,7 +1,5 @@
 import json
 
-import pyarrow as pa
-import pyarrow.parquet as pq
 from PIL import Image, ImageDraw
 
 from imagejev.data.build import (
@@ -60,6 +58,8 @@ def activity(kind):
 
 
 def test_build_rico_writes_screenshots_and_questions(tmp_path):
+    pa = pytest.importorskip("pyarrow")
+    pq = pytest.importorskip("pyarrow.parquet")
     buf_rows = []
     for i in range(6):
         import io
