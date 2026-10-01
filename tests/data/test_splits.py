@@ -51,6 +51,26 @@ def test_heldout_tasks_exist_and_cover_every_domain_and_type():
     assert all(CFG["task_families"].values())  # every entry says why
 
 
+def test_validation_families_exist_are_disjoint_from_test_families_and_cover_every_domain():
+    table = load_paraphrases()
+    val = set(CFG["val_task_families"])
+    assert val <= set(table) and not val & set(CFG["task_families"])
+    assert all(CFG["val_task_families"].values())
+    domains = {
+        "photo": "comp.photo.or",
+        "document": "doc.has_table",
+        "screenshot": "web.cookie_banner",
+    }
+    assert set(domains.values()) <= val  # one per domain, so each domain has a validation signal
+    assert "quality.noise" in val and "doc.stamp_text" in val  # a score family and a choice family
+
+
+def test_a_family_in_both_sets_is_rejected():
+    bad = {**CFG, "val_task_families": {sorted(CFG["task_families"])[0]: "oops"}}
+    with pytest.raises(ValueError, match="both"):
+        build_splits([rec("a", "x.y")], config=bad)
+
+
 def test_style_patterns_hit_something_but_not_most_styles():
     styles = [f"{t}:{th.id}" for t in TEMPLATES for th in make_themes()]
     styles += [f"{d}:{v}" for d in DOC_TYPES for v in VARIANTS]
@@ -61,7 +81,7 @@ def test_style_patterns_hit_something_but_not_most_styles():
 
 
 def test_group_fractions_are_sane():
-    assert set(CFG["group_fractions"]) == {"train", "val", "test-images", "test-tasks"}
+    assert set(CFG["group_fractions"]) == {"train", "val", "val-tasks", "test-images", "test-tasks"}
     assert abs(sum(CFG["group_fractions"].values()) - 1.0) < 1e-9
 
 
@@ -73,6 +93,7 @@ def make_world(n=3000):
         iid = f"coco:{i:06d}"
         records += [rec(iid, "coco.object_present"), rec(iid, "vqav2.yesno", source="vqav2")]
         records.append(rec(iid, held[0]))  # held-out task on every photo
+        records.append(rec(iid, sorted(CFG["val_task_families"])[0]))  # validation family
         records.append(rec(f"{iid}+blur", "quality.blur", meta={"source_id": iid}))
         facts.append(ImageFacts(f"{iid}+blur", "photo", "quality", {"source_id": iid}))
         w = f"web:{i:07d}"
@@ -235,3 +256,50 @@ def test_report_flags_thin_heldout_families():
     first = sorted(CFG["task_families"])[0]
     assert first not in big.thin_families(min_size=100)
     assert big.report(min_family_size=100)["test_tasks_per_family"][first] >= 100
+
+
+def test_val_tasks_holds_only_validation_families_and_they_appear_nowhere_else(world):
+    _, _, res = world
+    val_fams = set(CFG["val_task_families"])
+    tasks = {r.task for r in res.splits["val-tasks"]}
+    assert tasks and tasks <= val_fams
+    for s in SPLITS:
+        if s != "val-tasks":
+            assert not {r.task for r in res.splits[s]} & val_fams, s
+    assert not {r.task for r in res.splits["test-tasks"]} & val_fams
+
+
+def test_selection_split_shares_no_images_with_anything_else(world):
+    _, _, res = world
+    groups = {g for g, s in res.group_split.items() if s == "val-tasks"}
+    assert groups
+    for s in SPLITS:
+        if s != "val-tasks":
+            assert not groups & {group_id(r) for r in res.splits[s]}
+
+
+def test_check_splits_catches_validation_family_leaks():
+    val_fam = sorted(CFG["val_task_families"])[0]
+    empty = {s: [] for s in SPLITS}
+    with pytest.raises(AssertionError, match="validation task"):
+        check_splits(SplitResult({**empty, "train": [rec("a", val_fam)]}, {"a": "train"}))
+    with pytest.raises(AssertionError, match="seen task"):
+        check_splits(
+            SplitResult(
+                {**empty, "val-tasks": [rec("a", "coco.object_present")]}, {"a": "val-tasks"}
+            )
+        )
+    held = sorted(CFG["task_families"])[0]
+    with pytest.raises(AssertionError, match="seen task"):
+        check_splits(
+            SplitResult({**empty, "val-tasks": [rec("a", held)]}, {"a": "val-tasks"})
+        )  # test family
+    with pytest.raises(AssertionError, match="seen task"):
+        check_splits(SplitResult({**empty, "test-tasks": [rec("a", val_fam)]}, {"a": "test-tasks"}))
+
+
+def test_report_flags_thin_validation_families(world):
+    _, _, res = world
+    rep = res.report(min_family_size=10**9)  # everything is thin at this bar
+    assert set(rep["thin_val_families"]) == set(CFG["val_task_families"])
+    assert "val_tasks_per_family" in rep

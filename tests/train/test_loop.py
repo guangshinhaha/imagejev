@@ -241,3 +241,14 @@ def test_bf16_autocast_wiring_runs_on_cpu(tmp_path):
     assert len(losses) == 3 and all(math.isfinite(x) for x in losses)
     preds = t.predict(t.eval_sets["val"][:6])
     assert len(preds) == 6 and all(abs(p.p.sum() - 1) < 1e-3 for p in preds)
+
+
+def test_every_shipped_config_selects_on_an_eval_set_it_defines():
+    from pathlib import Path
+
+    configs = sorted((Path(__file__).resolve().parents[2] / "configs").glob("*.yaml"))
+    assert configs
+    for path in configs:
+        cfg = TrainConfig.from_yaml(path)
+        assert cfg.select_on in cfg.eval_files, path.name
+        assert cfg.select_on == "val-tasks", path.name  # never select on a test family

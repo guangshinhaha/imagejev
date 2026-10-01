@@ -20,7 +20,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-SPLITS = ("train", "val", "test-images", "test-tasks", "test-styles", "test-external")
+SPLITS = ("train", "val", "val-tasks", "test-images", "test-tasks", "test-styles", "test-external")
 RUN_FILES = ("last.pt", "best.pt", "train_log.csv", "eval_log.csv", "select_log.csv")
 
 

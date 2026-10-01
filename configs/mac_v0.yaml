@@ -20,6 +20,7 @@ heads: 8
 train_file: data/bench_v0/splits/train.jsonl
 eval_files:
   val: data/bench_v0/splits/val.jsonl
-select_on: val
+  val-tasks: data/bench_v0/splits/val-tasks.jsonl
+select_on: val-tasks   # unseen task families; the test families are never used for selection
 cache_dir: data/cache_v0
 out_dir: runs/mac_v0

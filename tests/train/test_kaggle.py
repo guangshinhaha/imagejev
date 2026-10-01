@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from imagejev.train.kaggle import RUN_FILES, package_dataset, restore_run
+from imagejev.train.kaggle import RUN_FILES, SPLITS, package_dataset, restore_run
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -47,7 +47,7 @@ def make_data(tmp_path):
     splits, cache = tmp_path / "splits", tmp_path / "cache"
     splits.mkdir()
     cache.mkdir()
-    for name in ("train", "val", "test-images", "test-tasks", "test-styles", "test-external"):
+    for name in SPLITS:
         (splits / f"{name}.jsonl").write_text(f'{{"split": "{name}"}}\n')
     (cache / "meta.json").write_text('{"encoder_id": "x"}')
     (cache / "shard-00000.npy").write_bytes(b"npydata")
@@ -61,8 +61,9 @@ def test_package_dataset_layout_and_metadata(tmp_path):
     splits, cache = make_data(tmp_path)
     info = package_dataset(splits, cache, tmp_path / "out", "me/imagejev-data", "imagejev data")
     out = tmp_path / "out"
-    assert sorted(p.name for p in (out / "splits").iterdir()) == sorted(f"{n}.jsonl" for n in (
-        "train", "val", "test-images", "test-tasks", "test-styles", "test-external"))  # fmt: skip
+    assert sorted(p.name for p in (out / "splits").iterdir()) == sorted(
+        f"{n}.jsonl" for n in SPLITS
+    )
     assert sorted(p.name for p in (out / "cache").iterdir()) == [
         "meta.json",
         "shard-00000.json",
@@ -72,7 +73,7 @@ def test_package_dataset_layout_and_metadata(tmp_path):
     assert (
         meta["id"] == "me/imagejev-data" and meta["title"] == "imagejev data" and meta["licenses"]
     )
-    assert info["files"] == 9 and info["bytes"] > 0
+    assert info["files"] == len(SPLITS) + 3 and info["bytes"] > 0
     assert (out / "cache" / "shard-00000.npy").read_bytes() == b"npydata"
     package_dataset(
         splits, cache, out, "me/imagejev-data", "t"
