@@ -78,10 +78,16 @@ class Tokenizer(Protocol):
 
 @dataclass
 class Encoded:
-    """Token features for a batch of sequences; ``mask`` is True for real tokens."""
+    """Token features for a batch of sequences.
+
+    ``mask`` is True for real tokens. ``focus`` marks the tokens that identify the option: its own
+    segment for a pair, every real token for a single segment. Pooling over ``focus`` keeps the
+    instructions (identical for every option of a question) from drowning out the option itself.
+    """
 
     tokens: torch.Tensor  # (B, L, d)
     mask: torch.Tensor  # (B, L) bool
+    focus: torch.Tensor  # (B, L) bool, a subset of ``mask``
 
 
 def _key(first: str, second: str | None) -> str:
@@ -113,7 +119,7 @@ class TextEncoder(nn.Module):
         if self.n_lora == 0:
             raise ValueError(f"no linear layers matched the LoRA targets {tuple(targets)}")
         self.hidden = int(backbone.config.hidden_size)
-        self._cache: OrderedDict[str, torch.Tensor] = OrderedDict()
+        self._cache: OrderedDict[str, tuple[torch.Tensor, torch.Tensor]] = OrderedDict()
         self._cache_size = cache_size
         self.cache_hits = 0
         self.cache_misses = 0
@@ -147,11 +153,11 @@ class TextEncoder(nn.Module):
     def _cacheable(self) -> bool:
         return not self.training and not torch.is_grad_enabled()
 
-    def _run(self, firsts: Sequence[str], seconds: Sequence[str | None]) -> Encoded:
-        has_pair = any(s is not None for s in seconds)
+    def _run_group(self, firsts: Sequence[str], seconds: Sequence[str] | None) -> Encoded:
+        """One forward pass over rows that are all pairs or all single segments."""
         enc = self.tokenizer(
             list(firsts),
-            [s or "" for s in seconds] if has_pair else None,
+            list(seconds) if seconds is not None else None,
             padding=True,
             truncation=True,
             max_length=self.max_len,
@@ -159,9 +165,46 @@ class TextEncoder(nn.Module):
         )
         device = next(self.backbone.parameters()).device
         ids = enc["input_ids"].to(device)
-        mask = enc["attention_mask"].to(device)
-        out = self.backbone(input_ids=ids, attention_mask=mask).last_hidden_state
-        return Encoded(out, mask.bool())
+        mask = enc["attention_mask"].to(device).bool()
+        out = self.backbone(input_ids=ids, attention_mask=mask.long()).last_hidden_state
+        if seconds is None:
+            return Encoded(out, mask, mask)
+        focus = torch.zeros_like(mask)
+        for r in range(len(firsts)):
+            seg = torch.tensor([sid == 1 for sid in enc.sequence_ids(r)], device=device)
+            focus[r, : len(seg)] = seg
+        empty = ~focus.any(
+            -1, keepdim=True
+        )  # an option that truncated away: fall back to all tokens
+        return Encoded(out, mask, torch.where(empty, mask, focus & mask))
+
+    def _run(self, firsts: Sequence[str], seconds: Sequence[str | None]) -> Encoded:
+        """Encode rows. Pairs and single segments go through separate passes, so a row's features
+        never depend on what else is in the batch (a mixed batch would give a single segment a
+        trailing empty segment)."""
+        paired = [i for i, s in enumerate(seconds) if s is not None]
+        single = [i for i, s in enumerate(seconds) if s is None]
+        parts: dict[int, tuple[torch.Tensor, torch.Tensor, torch.Tensor]] = {}
+        for rows, use_pair in ((paired, True), (single, False)):
+            if not rows:
+                continue
+            res = self._run_group(
+                [firsts[i] for i in rows],
+                [seconds[i] for i in rows] if use_pair else None,  # type: ignore[misc]
+            )
+            for k, i in enumerate(rows):
+                n = int(res.mask[k].sum())
+                parts[i] = (res.tokens[k, :n], res.mask[k, :n], res.focus[k, :n])
+        length = max(t.shape[0] for t, _, _ in parts.values())
+        first = next(iter(parts.values()))[0]
+        tokens = first.new_zeros(len(firsts), length, self.hidden)
+        mask = torch.zeros(len(firsts), length, dtype=torch.bool, device=first.device)
+        focus = torch.zeros_like(mask)
+        for i, (t, m, f) in parts.items():
+            tokens[i, : t.shape[0]] = t
+            mask[i, : t.shape[0]] = m
+            focus[i, : t.shape[0]] = f
+        return Encoded(tokens, mask, focus)
 
     def encode_pairs(self, firsts: Sequence[str], seconds: Sequence[str | None]) -> Encoded:
         """Encode ``(instructions, option)`` pairs; ``option=None`` means instructions only."""
@@ -180,20 +223,25 @@ class TextEncoder(nn.Module):
             res = self._run([firsts[i] for i in missing], [seconds[i] for i in missing])
             for row, i in enumerate(missing):
                 n = int(res.mask[row].sum())
-                found[i] = self._cache[keys[i]] = res.tokens[row, :n].detach()
+                found[i] = self._cache[keys[i]] = (
+                    res.tokens[row, :n].detach(),
+                    res.focus[row, :n].clone(),
+                )
         for k in keys:
             if k in self._cache:
                 self._cache.move_to_end(k)
         while len(self._cache) > self._cache_size:  # evict only after this batch is assembled
             self._cache.popitem(last=False)
         seqs = [found[i] for i in range(len(keys))]
-        length = max(s.shape[0] for s in seqs)
-        tokens = seqs[0].new_zeros(len(seqs), length, self.hidden)
+        length = max(t.shape[0] for t, _ in seqs)
+        tokens = seqs[0][0].new_zeros(len(seqs), length, self.hidden)
         mask = torch.zeros(len(seqs), length, dtype=torch.bool, device=tokens.device)
-        for r, s in enumerate(seqs):
-            tokens[r, : s.shape[0]] = s
-            mask[r, : s.shape[0]] = True
-        return Encoded(tokens, mask)
+        focus = torch.zeros_like(mask)
+        for r, (t, f) in enumerate(seqs):
+            tokens[r, : t.shape[0]] = t
+            mask[r, : t.shape[0]] = True
+            focus[r, : t.shape[0]] = f
+        return Encoded(tokens, mask, focus)
 
     def encode_state(self, text: str) -> Encoded | None:
         """Features for the optional state text (batch of one), or ``None`` if there is none."""

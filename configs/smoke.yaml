@@ -1,0 +1,19 @@
+# A short real run (a few minutes on a MacBook) to check the whole pipeline end to end.
+seed: 0
+device: auto
+steps: 150
+eval_every: 50
+ckpt_every: 50
+images_per_batch: 16
+questions_per_image: 4
+teacher_fraction: 0.0
+lr_fusion: 3.0e-4
+lr_lora: 1.0e-4
+warmup_steps: 20
+train_file: data/bench_v0/splits/train.jsonl
+eval_files:
+  val: data/bench_v0/splits/val.jsonl
+select_on: val
+max_eval_questions: 600
+cache_dir: data/cache_v0
+out_dir: runs/smoke

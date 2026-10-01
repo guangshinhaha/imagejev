@@ -1,0 +1,25 @@
+# The planned v0 run on a MacBook (MPS). Settings follow the spec (section 5).
+seed: 0
+device: auto
+steps: 3000
+eval_every: 250
+ckpt_every: 250
+images_per_batch: 16
+questions_per_image: 4
+teacher_fraction: 0.15
+lr_fusion: 3.0e-4
+lr_lora: 1.0e-4
+weight_decay: 0.01
+warmup_steps: 100
+grad_clip: 1.0
+lora_rank: 16
+lora_alpha: 32.0
+d_model: 512
+n_blocks: 4
+heads: 8
+train_file: data/bench_v0/splits/train.jsonl
+eval_files:
+  val: data/bench_v0/splits/val.jsonl
+select_on: val
+cache_dir: data/cache_v0
+out_dir: runs/mac_v0
