@@ -14,10 +14,11 @@ Latency is measured separately from accuracy, on a sample of images:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 from collections import defaultdict
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -55,6 +56,24 @@ def group_by_image(records: Iterable[QuestionRecord]) -> dict[str, list[Question
     for r in records:
         groups[r.image_id].append(r)
     return dict(groups)
+
+
+def subsample_images(
+    records: Sequence[QuestionRecord], n: int | None, seed: int = 0
+) -> list[QuestionRecord]:
+    """Keep every question of at most ``n`` images, chosen by a hash of the image id.
+
+    The choice depends only on the ids (not on order or on the model), so every model evaluated
+    with the same ``n`` and ``seed`` sees exactly the same questions.
+    """
+    if n is None:
+        return list(records)
+    ids = sorted(
+        {r.image_id for r in records},
+        key=lambda i: hashlib.sha256(f"{seed}:{i}".encode()).hexdigest(),
+    )
+    keep = set(ids[:n])
+    return [r for r in records if r.image_id in keep]
 
 
 def run_split(
@@ -206,13 +225,21 @@ def run_benchmark(
     *,
     fit_on: str | None = "val",
     latency_images: int = 30,
+    max_images_per_split: int | None = None,
     progress: Callable[[str, int], None] | None = None,
 ) -> dict[str, Any]:
     """Run ``model`` over every split file and write ``results.json`` and ``report.md``."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    loaded = {s: list(read_jsonl(p, QuestionRecord)) for s, p in split_files.items()}
-    result: dict[str, Any] = {"model": model.name, "splits": {}}
+    loaded = {
+        s: subsample_images(list(read_jsonl(p, QuestionRecord)), max_images_per_split)
+        for s, p in split_files.items()
+    }
+    result: dict[str, Any] = {
+        "model": model.name,
+        "max_images_per_split": max_images_per_split,
+        "splits": {},
+    }
     if fit_on and fit_on in loaded and hasattr(model, "logits"):
         result["fitted_temperatures"] = fit_temperatures(model, loaded[fit_on], image_for)
     for split, records in loaded.items():
@@ -230,6 +257,12 @@ def run_benchmark(
 
 def render_report(result: Mapping[str, Any]) -> str:
     lines = [f"# {result['model']}", ""]
+    if result.get("max_images_per_split"):
+        lines += [
+            f"Evaluated on a fixed subset of at most {result['max_images_per_split']} "
+            "images per split.",
+            "",
+        ]
     if result.get("fitted_temperatures"):
         temps = ", ".join(f"{k}={v:.2f}" for k, v in result["fitted_temperatures"].items())
         lines += [f"Temperatures fitted on val: {temps}", ""]
@@ -265,6 +298,12 @@ if __name__ == "__main__":
     ap.add_argument("--splits", nargs="*", default=None, help="default: every <split>.jsonl")
     ap.add_argument("--fit-on", default="val")
     ap.add_argument(
+        "--max-images",
+        type=int,
+        default=None,
+        help="evaluate at most this many images per split (a fixed subset shared by all models)",
+    )
+    ap.add_argument(
         "--save-calibration",
         action="store_true",
         help="write the fitted temperatures into the model directory (for exported models)",
@@ -280,7 +319,15 @@ if __name__ == "__main__":
         if n % 200 == 0:
             print(f"{split}: {n} images", flush=True)
 
-    run_benchmark(model, files, resolver, args.out, fit_on=args.fit_on, progress=show)
+    run_benchmark(
+        model,
+        files,
+        resolver,
+        args.out,
+        fit_on=args.fit_on,
+        max_images_per_split=args.max_images,
+        progress=show,
+    )
     if args.save_calibration:
         path = model.save_temperatures(args.model)
         print(f"saved calibration to {path}")
