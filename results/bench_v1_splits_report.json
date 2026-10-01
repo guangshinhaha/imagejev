@@ -1,0 +1,117 @@
+{
+  "questions": {
+    "train": 85491,
+    "val": 4808,
+    "val-tasks": 1165,
+    "test-images": 6732,
+    "test-tasks": 2495,
+    "test-styles": 23474,
+    "test-external": 4698
+  },
+  "by_domain_and_type": {
+    "train": {
+      "document/bool": 21553,
+      "document/choice": 7181,
+      "document/score": 5823,
+      "photo/bool": 9548,
+      "photo/choice": 4087,
+      "photo/score": 5810,
+      "screenshot/bool": 22657,
+      "screenshot/choice": 7723,
+      "screenshot/score": 1109
+    },
+    "val": {
+      "document/bool": 1241,
+      "document/choice": 416,
+      "document/score": 331,
+      "photo/bool": 540,
+      "photo/choice": 236,
+      "photo/score": 325,
+      "screenshot/bool": 1228,
+      "screenshot/choice": 425,
+      "screenshot/score": 66
+    },
+    "val-tasks": {
+      "document/bool": 316,
+      "document/choice": 367,
+      "document/score": 55,
+      "photo/bool": 127,
+      "photo/score": 43,
+      "screenshot/bool": 193,
+      "screenshot/score": 64
+    },
+    "test-images": {
+      "document/bool": 1732,
+      "document/choice": 571,
+      "document/score": 469,
+      "photo/bool": 694,
+      "photo/choice": 305,
+      "photo/score": 436,
+      "screenshot/bool": 1817,
+      "screenshot/choice": 606,
+      "screenshot/score": 102
+    },
+    "test-tasks": {
+      "document/bool": 129,
+      "document/choice": 207,
+      "document/score": 505,
+      "photo/bool": 41,
+      "photo/choice": 341,
+      "photo/score": 124,
+      "screenshot/bool": 230,
+      "screenshot/score": 918
+    },
+    "test-styles": {
+      "document/bool": 9185,
+      "document/choice": 2745,
+      "document/score": 3440,
+      "screenshot/bool": 5782,
+      "screenshot/choice": 2018,
+      "screenshot/score": 304
+    },
+    "test-external": {
+      "document/bool": 288,
+      "document/score": 200,
+      "photo/bool": 1200,
+      "photo/choice": 2400,
+      "screenshot/choice": 610
+    }
+  },
+  "image_groups": {
+    "train": 21171,
+    "val": 1196,
+    "val-tasks": 1134,
+    "test-images": 1660,
+    "test-tasks": 2195,
+    "test-styles": 4763,
+    "test-external": 2010
+  },
+  "dropped": {
+    "held-out task question on another split's image": 68080,
+    "seen-task question on a val-tasks image": 5729,
+    "seen-task question on a test-tasks image": 11162
+  },
+  "test_tasks_per_family": {
+    "coco.dominant_supercategory": 341,
+    "comp.doc.total_between": 129,
+    "comp.photo.more_of": 41,
+    "comp.screen.form_and_captcha": 95,
+    "doc.item_count": 426,
+    "doc.merchant_type": 207,
+    "quality.jpeg": 322,
+    "web.cart_empty": 135,
+    "web.input_count": 799
+  },
+  "thin_families": {
+    "comp.photo.more_of": 41,
+    "comp.screen.form_and_captcha": 95
+  },
+  "val_tasks_per_family": {
+    "comp.photo.or": 127,
+    "doc.has_table": 316,
+    "doc.stamp_text": 367,
+    "quality.noise": 162,
+    "web.cookie_banner": 193
+  },
+  "thin_val_families": {}
+}
