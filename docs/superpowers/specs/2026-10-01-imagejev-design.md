@@ -105,6 +105,12 @@ option vectors ─► 1 option-mixing self-attention layer (no positional encodi
 - **Text:** `ModernBERT-base` (149M parameters) with LoRA adapters (rank 16, on the attention projections). The state text is encoded **once per call**, not once per option.
 - **Fusion:** about 25–30M trainable parameters.
 - **Permutation invariance:** options are encoded independently with shared weights, and the mixing layer has no position information. Option order therefore cannot change the output. This avoids Laya's position-bias problem by construction.
+  **Exception: `score`.** Score levels are ordered by definition (low to high), and a set-based model
+  cannot know which end is "high" unless the words say so (`["A", "B", "C"]` would be unorderable).
+  Score options therefore also receive a rank embedding (their position divided by K - 1).
+  Order-independence is guaranteed and tested for `choice` and `bool`; for `score` the model is
+  equivariant when each level keeps its rank, and reversing the ranks does change the answer.
+  Release criterion 4 (shuffle test) applies to `choice` and `bool` only.
 - **bool:** encoded as a single "option" containing only the instructions. Its logit goes through a sigmoid.
 - **Heads and losses** (all proper scoring rules):
   - `choice`: softmax over options, log loss.
@@ -112,7 +118,9 @@ option vectors ─► 1 option-mixing self-attention layer (no positional encodi
   - `score`: softmax over levels, log loss + ranked probability score (RPS, weight 1.0). `expected` = Σ i·p_i.
 - **Calibration:** after training, one temperature per question type is fitted on the validation split and shipped with the weights.
 - **Caches:** image features (`ImageHandle`) and question/option encodings, keyed by a hash of the text, are both reusable.
-- **Total size:** about 265M parameters. About 30M plus LoRA are trained.
+- **Total size (measured):** the fusion model has 23.7M trainable parameters (two 2-layer adapters
+  2.6M, four fusion blocks 16.8M, mixer 3.2M, heads and rank embedding 1.1M); with the 1.6M LoRA
+  weights that is 25.3M. The earlier estimate of "about 30M" was a rough guess.
 - **Latency targets** (to be measured, not yet measured): GPU p50 under 50 ms for one cold image with one question, and under 10 ms for each extra question on an encoded image. Mac numbers are reported too.
 
 ## 4. Data
@@ -273,7 +281,7 @@ test-images, test-tasks, test-styles, test-external (§4.5).
    > (<= 6.9 ms on the same machine). A gentler alternative is "no more than 2 points below the
    > better baseline in any domain". Either is far stricter than the original, which is the point:
    > the original bar was calibrated before there was any data.
-4. Shuffling the option order changes the answer in fewer than 1% of cases.
+4. Shuffling the option order changes the answer in fewer than 1% of cases (`choice` and `bool` questions; `score` levels are ordered, see §3).
 
 **If criterion 1 fails:** v0 is not released as a model. We publish the benchmark and the negative result, then move to approach B: a small VLM used as an encoder that reads answer logits without decoding.
 
