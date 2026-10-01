@@ -1,0 +1,264 @@
+# imagejev — design spec
+
+Date: 2026-10-01
+Status: draft for review
+Working name: `imagejev` (must be renamed before public release — "Jev" is TypeSafe's product name)
+
+## 1. Goal
+
+An open-source **System 1 decision engine for images**: typed `choice`, `score` and `bool` decisions over an image (plus optional text state) in a single forward pass, with calibrated probabilities and no text generation.
+
+It is the image counterpart of [Laya](https://github.com/NandhaKishorM/laya) (text-only) and of TypeSafe's Jev, which has no image input.
+
+### What the user decided
+
+- **Purpose:** an open-source release (model weights + `pip` package + benchmark), in the style of Laya.
+- **Scope:** general purpose. Photos, documents and screenshots are all first-class, and none of them dominates.
+- **Ambition:** a trained model, not just a wrapper around an existing one.
+- **Budget:** $0 for v0. All work runs on a MacBook Pro with 24 GB RAM and on free Kaggle/Colab GPU tiers. Spending more is reconsidered only after stage-2 results.
+- **Architecture:** approach A, a trained fusion head on a frozen SigLIP 2 (section 3).
+- **Teacher:** keep a small slice of examples labelled by a local VLM (section 4.4).
+
+### Success
+
+Section 7.4 defines the release criteria. In short, v0 must beat SigLIP 2 zero-shot on calibration and log loss for unseen tasks in every domain, while running at least 10× faster than a small VLM.
+
+### Non-goals (v0)
+
+- More than one image per call.
+- Region or bounding-box answers.
+- More than 32 options per question. Jev handles 255; a two-stage approach is deferred.
+- Generating free text.
+- Batch CLI, FastAPI server and ONNX export. These come after the core works, mirroring Laya.
+
+## 2. Public API
+
+The question schema deliberately matches Laya's, so the same questions work on text or images and the two could later share a router.
+
+```python
+from imagejev import Model
+
+m = Model.load("imagejev-base")
+
+result = m.predict(
+    image="receipt.jpg",                  # path | PIL.Image | bytes | ImageHandle
+    state={"merchant_note": "returned"},  # optional str or JSON-serialisable dict
+    questions={
+        "doc_type": {
+            "type": "choice",
+            "instructions": "What kind of document is this?",
+            "criteria": {"receipt": "proof of purchase",
+                         "invoice": "bill requesting payment",
+                         "other": "anything else"},
+        },
+        "legibility": {
+            "type": "score",
+            "instructions": "How readable is the text?",
+            "levels": ["unreadable", "poor", "ok", "clear"],   # ordered low → high
+        },
+        "signed": {"type": "bool", "instructions": "Is there a handwritten signature?"},
+    },
+)
+```
+
+Output, keyed by question id:
+
+| type | fields |
+|---|---|
+| choice | `answer: str`, `probs: dict[str, float]`, `confidence: float` |
+| score | `answer: str`, `probs: dict[str, float]`, `expected: float` (0-based level index), `confidence: float` |
+| bool | `answer: bool`, `p_true: float`, `confidence: float` |
+
+- `confidence` is the calibrated probability of the returned answer. For `bool` that is `max(p_true, 1 - p_true)`.
+- **Encode once, ask many.** `h = m.encode(image)` returns an `ImageHandle` holding the cached vision features. Passing `predict(image=h, ...)` skips the vision encoder. Results must be identical to passing the raw image.
+- The README documents the escalation pattern: answer locally when `confidence ≥ threshold`, otherwise call a large VLM.
+
+### Validation and errors
+
+| Condition | Behaviour |
+|---|---|
+| Image can't be decoded | raise `ImageLoadError` |
+| `choice` with no `criteria`, or `score` with fewer than 2 `levels` | raise `QuestionSchemaError` |
+| More than 32 options or levels | raise `QuestionSchemaError` |
+| Unknown `type` | raise `QuestionSchemaError` |
+| `state` longer than the token budget (256 tokens) | truncate it and emit a `UserWarning` |
+
+## 3. Model
+
+```
+image ─► SigLIP 2 base/16 @384 (frozen) ─► 24×24 = 576 patch tokens
+      ─► 3×3 avg-pool ─► 64 tokens + 1 global token          (cached, fp16, ~100 KB/image)
+
+state ─► text encoder ─► state tokens
+memory = [image tokens ; state tokens]
+
+for each option o:
+    [instructions ‖ "label: description"] ─► text encoder (ModernBERT-base + LoRA)
+    ─► fusion block × 4 (self-attn → cross-attn to memory → MLP), d = 512
+    ─► pooled option vector
+
+option vectors ─► 1 option-mixing self-attention layer (no positional encoding)
+               ─► linear ─► one logit per option
+```
+
+- **Vision:** `SigLIP 2 base patch16-384` (~86M parameters), frozen. Pooling is fixed, not learned, so features can be cached before training.
+- **Text:** `ModernBERT-base` (149M parameters) with LoRA adapters (rank 16, on the attention projections). The state text is encoded **once per call**, not once per option.
+- **Fusion:** about 25–30M trainable parameters.
+- **Permutation invariance:** options are encoded independently with shared weights, and the mixing layer has no position information. Option order therefore cannot change the output. This avoids Laya's position-bias problem by construction.
+- **bool:** encoded as a single "option" containing only the instructions. Its logit goes through a sigmoid.
+- **Heads and losses** (all proper scoring rules):
+  - `choice`: softmax over options, log loss.
+  - `bool`: sigmoid, binary log loss.
+  - `score`: softmax over levels, log loss + ranked probability score (RPS, weight 1.0). `expected` = Σ i·p_i.
+- **Calibration:** after training, one temperature per question type is fitted on the validation split and shipped with the weights.
+- **Caches:** image features (`ImageHandle`) and question/option encodings, keyed by a hash of the text, are both reusable.
+- **Total size:** about 265M parameters. About 30M plus LoRA are trained.
+- **Latency targets** (to be measured, not yet measured): GPU p50 under 50 ms for one cold image with one question, and under 10 ms for each extra question on an encoded image. Mac numbers are reported too.
+
+## 4. Data
+
+Principle: use labels that are known to be true wherever possible. The teacher labels only what nothing else can.
+
+### 4.1 Existing datasets converted to typed questions
+
+| Domain | Source | Question types |
+|---|---|---|
+| Photos | COCO annotations | bool (object present), choice (scene / supercategory), score (count bins: none / one / few / many) |
+| Photos | VQAv2, yes/no subset | bool, with real human-written questions |
+| Screenshots | Rico | choice (screen type), bool (element present) |
+| Documents | RVL-CDIP | choice (16 document types) |
+
+### 4.2 Synthetic data with known labels
+
+- **Web screenshots:** generated HTML rendered with Playwright, with controlled state: modal, error banner, spinner, login form, empty cart, captcha box, CTA position above or below the fold.
+- **Documents:** templated receipts, invoices and forms. Merchant type, total, signature present, table present and stamp are all known.
+- **Image-quality scores:** blur, JPEG compression, noise, darkening and cropping applied at known strengths to any source image.
+
+### 4.3 Question generation
+
+- About 20 paraphrased instructions per task, generated once and stored in version control.
+- Random option subsets, varied option descriptions, and an optional "none of these" option.
+- Hard distractors drawn from neighbouring classes.
+- Bool questions balanced to about 50/50.
+- **Compositional questions with exact answers**, built from known labels:
+  - logic over COCO labels ("a dog and no person");
+  - count thresholds;
+  - synthetic document fields ("a restaurant receipt over $50");
+  - screenshot layout ("button above the fold").
+
+### 4.4 Teacher-labelled slice
+
+- **Target:** 20–30k examples of judgement-style or open-world criteria on real images.
+- **Teacher:** a 7B Qwen-VL model, 4-bit, run through MLX on the Mac.
+- **Labels:** the teacher is prompted to answer with one option token. Its probabilities over the option tokens are normalised and stored as soft labels.
+- **Quality check:** the user hand-checks about 200 examples. Any task family where the teacher's accuracy on that check is below 80% is dropped.
+
+### 4.5 Splits
+
+| Split | Purpose |
+|---|---|
+| train | — |
+| val | model selection, temperature fitting |
+| test-images | unseen images, seen task families |
+| test-tasks | whole task families never seen in training: the main criteria-following test |
+| test-styles | synthetic templates and themes never seen in training (catches memorising the generator) |
+| test-external | one public dataset per domain, zero-shot, chosen after a license check |
+
+Splits are made by source image ID, so no image appears in two splits.
+
+### 4.6 Size and licensing
+
+- About 150–200k images and 1–2M question instances. The feature cache is about 20 GB.
+- Code and weights will be Apache 2.0. **Every source's license must be checked before release.** Any published dataset includes only the permissively licensed and synthetic parts. ImageNet is excluded.
+
+## 5. Training
+
+1. **Cache features once** on the Mac (MPS). The cache can be rebuilt by rerunning the step.
+2. **Sampler:** pick images first, then K = 4 questions per image, sharing the loaded features.
+   - Domains (photos / documents / screenshots) are weighted equally.
+   - Question types (choice / score / bool) are weighted equally.
+   - Teacher examples make up about 15% of each batch.
+3. **Optimiser:** AdamW. Learning rate 3e-4 for the fusion layers and 1e-4 for LoRA, with cosine decay and warmup.
+4. **Hardware:**
+   - Mac: development and small runs in fp32.
+   - Kaggle: full runs in fp16, saving a checkpoint every N steps and resuming after the session limit.
+5. **Monitoring:** log loss, accuracy and ECE each epoch, broken down by domain × question type.
+6. **Model selection:** the lowest log loss on the val split's held-out task families.
+7. **Post-hoc:** fit the per-type temperatures.
+8. **Reproducibility:** YAML configs, fixed seeds and CSV logs. No paid tracking services.
+
+### Ablations (short runs on the cached features)
+
+1. 64 vs 144 image tokens.
+2. Square input vs SigLIP 2 NaFlex, which keeps the aspect ratio (needs a second cache).
+3. With vs without the teacher slice.
+4. With vs without the option-mixing layer, plus the option-shuffle test.
+
+## 6. Delivery stages and spending gates
+
+| Stage | Cost | Output | Gate to continue |
+|---|---|---|---|
+| 0 | $0 | Typed-API wrapper over SigLIP 2 zero-shot (the baseline) | — |
+| 1 | $0 | Data pipeline, splits, feature cache, benchmark harness | Baselines run end to end |
+| 2 | $0 | Trained fusion model v0 | Release criteria 1–2 (§7.4) on val |
+| 3 | $0 (budget decision revisited here) | Ablations, teacher slice, final run, release | All release criteria on test |
+
+## 7. Benchmark
+
+### 7.1 Baselines
+
+1. SigLIP 2 zero-shot behind the same typed API, with its own fitted temperature (stage 0).
+2. A small VLM (SmolVLM or moondream), prompted, with option probabilities read from its output.
+3. The teacher (7B Qwen-VL), as the accuracy ceiling.
+
+Jev isn't benchmarked because it has no image input.
+
+### 7.2 Metrics
+
+- Accuracy, plus within-one-level accuracy for `score`.
+- Log loss and ECE (15 bins).
+- Accuracy at 80% coverage, answering only the most confident 80%.
+- Latency p50 and p95, cold and warm (encoded image), on the Mac and on a Kaggle T4.
+
+All metrics are reported per domain and per question type.
+
+### 7.3 Splits used
+
+test-images, test-tasks, test-styles, test-external (§4.5).
+
+### 7.4 Release criteria (fixed before training)
+
+1. On **test-tasks**, lower log loss and ECE than SigLIP 2 zero-shot, in **every** domain.
+2. No domain falls below SigLIP 2 zero-shot accuracy on any test split.
+3. Accuracy within 5 points of the small-VLM baseline at ≥10× lower warm latency. (The 5-point bar may be revised before training starts, never after.)
+4. Shuffling the option order changes the answer in fewer than 1% of cases.
+
+**If criterion 1 fails:** v0 is not released as a model. We publish the benchmark and the negative result, then move to approach B: a small VLM used as an encoder that reads answer logits without decoding.
+
+## 8. Testing
+
+- Schema validation and every error path in §2.
+- Tensor shapes through every stage.
+- Option-shuffle invariance: the same probabilities, up to 1e-5, under permuted option order.
+- `predict(encode(img))` gives the same result as `predict(img)`.
+- Temperature fitting reduces ECE on a synthetic, deliberately miscalibrated fixture.
+- Golden tests: a small set of images with expected answers, as a regression check.
+
+## 9. Repository layout (proposed)
+
+```
+imagejev/
+  src/imagejev/        # api.py, schema.py, model/, cache.py, calibrate.py
+  data/                # builders per source, synthetic generators, question templates
+  train/               # configs/, train.py, sampler.py
+  bench/               # baselines/, run.py, metrics.py
+  tests/
+  docs/superpowers/specs/
+```
+
+## 10. Open items
+
+- Final project name (must not use "Jev").
+- License check for each data source (§4.6).
+- Which external zero-shot dataset to use per domain (§4.5).
+- Confirm the 5-point accuracy bar (§7.4) before stage 2 training.
