@@ -56,6 +56,7 @@ class Model:
         cache_size: int = 256,
     ):
         self.backend = backend
+        self.name = getattr(backend, "name", type(backend).__name__)
         self.temperatures = {**DEFAULT_TEMPERATURES, **(temperatures or {})}
         self._encoder = CachedEncoder(backend, max_items=cache_size)
 
@@ -81,6 +82,22 @@ class Model:
     def encode(self, image: Any) -> ImageHandle:
         """Encode an image once; pass the handle to ``predict`` to skip the vision encoder."""
         return self._encoder.encode(image)
+
+    def clear_cache(self) -> None:
+        """Forget cached image features (used to measure cold latency)."""
+        self._encoder._cache.clear()
+
+    def logits(
+        self,
+        image: Any,
+        questions: Mapping[str, Mapping[str, Any]],
+        state: str | Mapping[str, Any] | None = None,
+    ) -> dict[str, np.ndarray]:
+        """Raw, uncalibrated logits per question, for fitting temperatures."""
+        parsed = parse_questions(questions)
+        state_text = truncate_state(state_to_text(state))
+        handle = self.encode(image)
+        return {q.id: np.asarray(self.backend.logits(handle, state_text, q)) for q in parsed}
 
     def predict(
         self,
