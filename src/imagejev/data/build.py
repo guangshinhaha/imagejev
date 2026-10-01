@@ -135,6 +135,9 @@ def main() -> None:
     ap.add_argument("--rico-limit", type=int, default=1500)
     ap.add_argument("--quality-sources", type=int, default=0, help="per domain")
     ap.add_argument("--reuse", action="store_true", help="keep web/docs output already on disk")
+    ap.add_argument("--external", action="store_true", help="add the external test sets")
+    ap.add_argument("--pets-images", type=int, default=1200)
+    ap.add_argument("--raw-dir", default="data/raw", help="where external parquet files are kept")
     args = ap.parse_args()
 
     out = Path(args.out)
@@ -176,6 +179,17 @@ def main() -> None:
                 )
         picked = [s for items in by_domain.values() for s in items[: args.quality_sources]]
         add(*build_quality(picked, out, seed=args.seed), "quality")
+    if args.external:
+        from .external_build import build_external, class_names, download_external
+
+        paths = download_external(Path(args.raw_dir) / "external")
+        breeds = class_names("timm/oxford-iiit-pet", "label")
+        add(
+            *build_external(
+                paths, out, pets_breeds=breeds, pets_images=args.pets_images, seed=args.seed
+            ),
+            "external",
+        )
     report = assemble(records, facts, out, seed=args.seed)
     print(
         json.dumps({k: report[k] for k in ("questions", "image_groups", "thin_families")}, indent=2)
