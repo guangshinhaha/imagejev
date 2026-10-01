@@ -168,6 +168,7 @@ Principle: use labels that are known to be true wherever possible. The teacher l
 | train | — |
 | val | model selection, temperature fitting |
 | test-images | unseen images, seen task families |
+| val-tasks | five validation task families (disjoint from the test families), used only for model selection |
 | test-tasks | whole task families never seen in training: the main criteria-following test |
 | test-styles | synthetic templates and themes never seen in training (catches memorising the generator) |
 | test-external | three public datasets, zero-shot, never trained on (below) |
@@ -208,7 +209,7 @@ DocLayNet (license `other`), WebSight (synthetic, like our own generator).
    - Mac: development and small runs in fp32.
    - Kaggle: full runs in fp16, saving a checkpoint every N steps and resuming after the session limit.
 5. **Monitoring:** log loss, accuracy and ECE each epoch, broken down by domain × question type.
-6. **Model selection:** the lowest log loss on the val split's held-out task families.
+6. **Model selection:** the lowest macro log loss on `val-tasks`: task families that are held out of training like the test families, but **disjoint from them**, so choosing a checkpoint never touches the test families (see §4.5).
 7. **Post-hoc:** fit the per-type temperatures.
 8. **Reproducibility:** YAML configs, fixed seeds and CSV logs. No paid tracking services.
 

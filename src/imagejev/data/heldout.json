@@ -1,5 +1,5 @@
 {
-  "_comment": "Which task families and styles are never trained on. Committed so the claim 'following criteria it has never seen' is auditable. Changing this changes every split, so do it before any training run.",
+  "_comment": "Which task families and styles are never trained on. Committed so the claim 'following criteria it has never seen' is auditable. Changing this changes every split, so do it before any training run. val_task_families are used only for model selection (the val-tasks split) and are disjoint from task_families, so selecting a checkpoint never touches the test families.",
   "task_families": {
     "coco.dominant_supercategory": "photo, choice: needs reading the option descriptions, not memorising labels",
     "comp.photo.more_of": "photo, bool: comparing two counts, a structure never seen in training",
@@ -19,9 +19,17 @@
   ],
   "external_source_prefix": "ext:",
   "group_fractions": {
-    "train": 0.82,
+    "train": 0.78,
     "val": 0.04,
+    "val-tasks": 0.04,
     "test-images": 0.06,
     "test-tasks": 0.08
+  },
+  "val_task_families": {
+    "comp.photo.or": "photo, bool: a disjunction of two objects",
+    "doc.has_table": "document, bool: spotting a ruled table",
+    "web.cookie_banner": "screenshot, bool: a banner at the page edge",
+    "quality.noise": "all domains, score: grain and noise",
+    "doc.stamp_text": "document, choice: reading a stamp"
   }
 }
