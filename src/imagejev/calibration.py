@@ -10,6 +10,7 @@ import numpy as np
 
 QUESTION_TYPES = ("choice", "score", "bool")
 TEMPERATURES_FILE = "temperatures.json"
+BOOL_BIAS = "bool_bias"  # stored beside the temperatures; may be any real number
 
 
 def ece(confidences: Sequence[float], correct: Sequence[bool], n_bins: int = 15) -> float:
@@ -96,13 +97,69 @@ def fit_temperature(
     return float(np.exp((a + b) / 2.0))
 
 
+def fit_platt(
+    logits: Sequence[float],
+    labels: Sequence[int],
+    *,
+    min_scale: float = 0.05,
+    max_scale: float = 20.0,
+    iters: int = 100,
+) -> tuple[float, float]:
+    """Fit ``p(true) = sigmoid(z / T + b)`` by Newton's method; returns ``(T, b)``.
+
+    Temperature alone assumes a logit of 0 means 50%. Scores with no natural zero (a match score
+    minus a generic caption's) need the bias too. The slope ``1/T`` is clamped to
+    ``[min_scale, max_scale]``, so an uninformative or inverted score collapses to a near-constant
+    prediction instead of silently flipping its meaning.
+    """
+    z = np.asarray([float(np.ravel(v)[0]) for v in logits])
+    y = np.asarray(labels, dtype=np.float64)
+    if len(z) != len(y) or len(y) == 0:
+        raise ValueError("need the same, non-zero number of logits and labels")
+    if not set(np.unique(y)) <= {0.0, 1.0}:
+        raise ValueError("bool labels must be 0 or 1")
+    # Standardise the score so Newton's method is well conditioned whatever its scale, start at the
+    # smallest allowed slope, and backtrack so the loss can never go up.
+    mu, sd = float(z.mean()), float(z.std()) or 1.0
+    x = np.stack([(z - mu) / sd, np.ones_like(z)], axis=1)
+    lo, hi = min_scale * sd, max_scale * sd  # slope bounds in standardised units
+
+    def nll(w: np.ndarray) -> float:
+        s = x @ w
+        return float(np.mean(np.logaddexp(0.0, -np.where(y == 1.0, s, -s))))
+
+    w = np.array([lo, 0.0])  # start at the slope floor: an inverted score never gets below it
+    cur = nll(w)
+    for _ in range(iters):
+        p = 1.0 / (1.0 + np.exp(-(x @ w)))
+        grad = x.T @ (p - y) / len(y) + 1e-9 * w
+        hess = (x * (p * (1 - p))[:, None]).T @ x / len(y) + 1e-9 * np.eye(2)
+        step = np.linalg.solve(hess, grad)
+        t = 1.0
+        while t > 1e-8:
+            cand = w - t * step
+            cand[0] = np.clip(cand[0], lo, hi)
+            new = nll(cand)
+            if new <= cur + 1e-15:
+                break
+            t *= 0.5
+        else:
+            break
+        done = cur - new < 1e-12
+        w, cur = cand, new
+        if done:
+            break
+    slope = w[0] / sd  # back to the original score's units
+    return float(1.0 / slope), float(w[1] - slope * mu)
+
+
 def save_temperatures(temperatures: dict[str, float], path: str | Path) -> Path:
     """Write temperatures to ``path`` (a file, or a model directory)."""
     p = Path(path)
     if p.suffix != ".json":
         p.mkdir(parents=True, exist_ok=True)
         p = p / TEMPERATURES_FILE
-    unknown = set(temperatures) - set(QUESTION_TYPES)
+    unknown = set(temperatures) - set(QUESTION_TYPES) - {BOOL_BIAS}
     if unknown:
         raise ValueError(f"unknown question types: {sorted(unknown)}")
     p.write_text(json.dumps({k: float(v) for k, v in temperatures.items()}, indent=2) + "\n")
@@ -114,9 +171,9 @@ def load_temperatures(path: str | Path) -> dict[str, float]:
     if p.is_dir():
         p = p / TEMPERATURES_FILE
     data = json.loads(p.read_text())
-    unknown = set(data) - set(QUESTION_TYPES)
+    unknown = set(data) - set(QUESTION_TYPES) - {BOOL_BIAS}
     if unknown:
         raise ValueError(f"unknown question types in {p}: {sorted(unknown)}")
-    if any(not v > 0 for v in data.values()):
+    if any(not v > 0 for k, v in data.items() if k != BOOL_BIAS):
         raise ValueError(f"temperatures in {p} must be positive")
     return {k: float(v) for k, v in data.items()}

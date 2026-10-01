@@ -1,0 +1,93 @@
+{
+  "questions": {
+    "train": 38907,
+    "val": 1914,
+    "test-images": 2867,
+    "test-tasks": 846,
+    "test-styles": 7226,
+    "test-external": 0
+  },
+  "by_domain_and_type": {
+    "train": {
+      "document/bool": 7411,
+      "document/choice": 3790,
+      "document/score": 1358,
+      "photo/bool": 12708,
+      "photo/score": 4274,
+      "screenshot/bool": 7057,
+      "screenshot/choice": 2049,
+      "screenshot/score": 260
+    },
+    "val": {
+      "document/bool": 389,
+      "document/choice": 210,
+      "document/score": 63,
+      "photo/bool": 589,
+      "photo/score": 204,
+      "screenshot/bool": 346,
+      "screenshot/choice": 101,
+      "screenshot/score": 12
+    },
+    "test-images": {
+      "document/bool": 543,
+      "document/choice": 288,
+      "document/score": 114,
+      "photo/bool": 886,
+      "photo/score": 298,
+      "screenshot/bool": 557,
+      "screenshot/choice": 162,
+      "screenshot/score": 19
+    },
+    "test-tasks": {
+      "document/bool": 31,
+      "document/choice": 46,
+      "document/score": 107,
+      "photo/bool": 43,
+      "photo/choice": 341,
+      "photo/score": 11,
+      "screenshot/bool": 59,
+      "screenshot/score": 208
+    },
+    "test-styles": {
+      "document/bool": 2863,
+      "document/choice": 1372,
+      "document/score": 781,
+      "screenshot/bool": 1671,
+      "screenshot/choice": 489,
+      "screenshot/score": 50
+    },
+    "test-external": {}
+  },
+  "image_groups": {
+    "train": 8609,
+    "val": 412,
+    "test-images": 628,
+    "test-tasks": 860,
+    "test-styles": 1175,
+    "test-external": 0
+  },
+  "dropped": {
+    "held-out task question on another split's image": 11610,
+    "seen-task question on a test-tasks image": 3711
+  },
+  "test_tasks_per_family": {
+    "coco.dominant_supercategory": 341,
+    "comp.doc.total_between": 31,
+    "comp.photo.more_of": 43,
+    "comp.screen.form_and_captcha": 28,
+    "doc.item_count": 99,
+    "doc.merchant_type": 46,
+    "quality.jpeg": 28,
+    "web.cart_empty": 31,
+    "web.input_count": 199
+  },
+  "thin_families": {
+    "comp.doc.total_between": 31,
+    "comp.photo.more_of": 43,
+    "comp.screen.form_and_captcha": 28,
+    "doc.item_count": 99,
+    "doc.merchant_type": 46,
+    "quality.jpeg": 28,
+    "web.cart_empty": 31
+  }
+}

@@ -119,7 +119,7 @@ def test_fit_temperatures_updates_model_and_reports():
     m = model()
     before = dict(m.temperatures)
     fitted = fit_temperatures(m, recs, imgs.__getitem__, min_examples=20)
-    assert set(fitted) == {"choice", "bool", "score"}
+    assert set(fitted) == {"choice", "bool", "bool_bias", "score"}
     assert all(m.temperatures[k] == fitted[k] for k in fitted) and m.temperatures != before
     m2 = model()
     assert fit_temperatures(m2, recs[:9], imgs.__getitem__, min_examples=20) == {}  # too few

@@ -23,7 +23,7 @@ from typing import Any, Protocol
 
 import numpy as np
 
-from ..calibration import fit_temperature
+from ..calibration import fit_platt, fit_temperature
 from ..data.records import ImageFacts, QuestionRecord, read_jsonl
 from .metrics import Prediction, evaluate, from_bool, latency_summary, to_markdown
 
@@ -146,7 +146,11 @@ def fit_temperatures(
             )
     fitted: dict[str, float] = {}
     for t, (zs, ys) in data.items():
-        if len(ys) >= min_examples:
+        if len(ys) < min_examples:
+            continue
+        if t == "bool":  # a bias too: a bool score's zero need not mean 50%
+            fitted["bool"], fitted["bool_bias"] = fit_platt(zs, ys)
+        else:
             fitted[t] = fit_temperature(zs, ys, t)
     model.temperatures.update(fitted)
     return fitted

@@ -14,6 +14,7 @@ from ..schema import Question
 
 DEFAULT_CHECKPOINT = "google/siglip2-base-patch16-384"
 POOL = 3  # 24x24 patch grid -> 8x8 = 64 tokens
+GENERIC_CAPTION = "an image"
 
 
 def _use_system_trust_store() -> None:
@@ -105,7 +106,10 @@ class SigLIPBackend:
     def logits(self, handle: ImageHandle, state: str, question: Question) -> np.ndarray:
         prefix = f"{question.instructions} " if question.instructions else ""
         if question.type == "bool":
-            sims = self._scaled_similarity(handle, [f"{prefix}Yes.", f"{prefix}No."])
+            # How well the instruction text matches the image, relative to a generic caption.
+            # Contrasting "...Yes." with "...No." carries no signal (AUROC 0.51 on val); the
+            # match score does (0.69). The score has no natural zero, so Platt scaling fits a bias.
+            sims = self._scaled_similarity(handle, [question.instructions, GENERIC_CAPTION])
             return np.array([sims[0] - sims[1]])
         texts = [f"{prefix}{o.text()}" for o in question.options]
         return self._scaled_similarity(handle, texts)

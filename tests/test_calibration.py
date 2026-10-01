@@ -4,6 +4,7 @@ import pytest
 from imagejev.api import Model, softmax
 from imagejev.calibration import (
     ece,
+    fit_platt,
     fit_temperature,
     load_temperatures,
     save_temperatures,
@@ -94,3 +95,71 @@ def test_model_saves_its_temperatures(tmp_path):
     m = Model(B(), {"choice": 2.0})
     m.save_temperatures(tmp_path)
     assert load_temperatures(tmp_path)["choice"] == 2.0
+
+
+def test_fit_platt_recovers_temperature_and_bias():
+    rng = np.random.default_rng(3)
+    true = rng.normal(size=8000) * 2
+    labels = (rng.random(8000) < 1 / (1 + np.exp(-(true / 2.0 + 1.5)))).astype(int)
+    # the model's score is the true logit scaled 3x and shifted by -4: no natural zero
+    t, b = fit_platt((true * 3 - 4).tolist(), labels.tolist())
+    # sigmoid(z/T + b) must reproduce sigmoid(true/2 + 1.5), where true = (z + 4) / 3
+    assert t == pytest.approx(6.0, rel=0.15)
+    assert b == pytest.approx(1.5 + 4 / 6.0, abs=0.2)
+
+
+def test_platt_beats_temperature_alone_on_an_offset_score():
+    rng = np.random.default_rng(4)
+    z = rng.normal(size=4000)
+    labels = (rng.random(4000) < 1 / (1 + np.exp(-(2 * z + 3)))).astype(int)  # positives dominate
+    t_only = fit_temperature(z.tolist(), labels.tolist(), "bool")
+    t, b = fit_platt(z.tolist(), labels.tolist())
+
+    def nll(a, c):
+        s = z * a + c
+        return float(np.mean(np.logaddexp(0, -np.where(labels == 1, s, -s))))
+
+    assert nll(1 / t, b) < nll(1 / t_only, 0.0) - 0.05
+
+
+def test_platt_does_not_flip_an_inverted_or_useless_score():
+    rng = np.random.default_rng(5)
+    z = rng.normal(size=3000)
+    inverted = (rng.random(3000) < 1 / (1 + np.exp(2 * z))).astype(int)  # high score -> false
+    t, b = fit_platt(z.tolist(), inverted.tolist())
+    assert 1 / t == pytest.approx(0.05)  # slope clamped to the floor: near-constant output
+    noise = rng.integers(0, 2, 3000)
+    t2, _ = fit_platt(z.tolist(), noise.tolist())
+    assert 1 / t2 < 0.2
+
+
+def test_platt_validates_input():
+    with pytest.raises(ValueError):
+        fit_platt([], [])
+    with pytest.raises(ValueError):
+        fit_platt([0.0, 1.0], [0, 2])
+    with pytest.raises(ValueError):
+        fit_platt([0.0], [0, 1])
+
+
+def test_bias_round_trips_and_may_be_negative(tmp_path):
+    temps = {"choice": 2.0, "bool": 1.3, "bool_bias": -0.7}
+    p = save_temperatures(temps, tmp_path)
+    assert load_temperatures(p) == temps
+    (tmp_path / "bad.json").write_text('{"bool": -1.0}')
+    with pytest.raises(ValueError):
+        load_temperatures(tmp_path / "bad.json")
+
+
+def test_model_applies_the_bool_bias():
+    from imagejev.api import format_answer
+    from imagejev.schema import parse_question
+
+    q = parse_question("b", {"type": "bool", "instructions": "x"})
+    neutral = format_answer(q, np.array([0.0]), 1.0, 0.0)["p_true"]
+    shifted = format_answer(q, np.array([0.0]), 1.0, 2.0)["p_true"]
+    assert neutral == pytest.approx(0.5) and shifted == pytest.approx(1 / (1 + np.exp(-2.0)))
+    assert (
+        Model(type("B", (), {"encoder_id": "x"})(), {"bool_bias": 1.0}).temperatures["bool_bias"]
+        == 1.0
+    )

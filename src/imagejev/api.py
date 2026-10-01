@@ -13,7 +13,7 @@ from .calibration import load_temperatures, save_temperatures
 from .images import CachedEncoder, ImageHandle, load_image
 from .schema import Question, parse_questions, state_to_text, truncate_state
 
-DEFAULT_TEMPERATURES = {"choice": 1.0, "score": 1.0, "bool": 1.0}
+DEFAULT_TEMPERATURES = {"choice": 1.0, "score": 1.0, "bool": 1.0, "bool_bias": 0.0}
 
 
 def softmax(logits: np.ndarray, temperature: float = 1.0) -> np.ndarray:
@@ -23,14 +23,19 @@ def softmax(logits: np.ndarray, temperature: float = 1.0) -> np.ndarray:
     return e / e.sum()
 
 
-def sigmoid(x: float, temperature: float = 1.0) -> float:
-    return float(1.0 / (1.0 + np.exp(-x / temperature)))
+def sigmoid(x: float, temperature: float = 1.0, bias: float = 0.0) -> float:
+    return float(1.0 / (1.0 + np.exp(-(x / temperature + bias))))
 
 
-def format_answer(q: Question, logits: np.ndarray, temperature: float) -> dict[str, Any]:
-    """Turn raw logits into the public per-question result dict."""
+def format_answer(
+    q: Question, logits: np.ndarray, temperature: float, bias: float = 0.0
+) -> dict[str, Any]:
+    """Turn raw logits into the public per-question result dict.
+
+    ``bias`` only applies to ``bool``: ``p(true) = sigmoid(logit / T + bias)``.
+    """
     if q.type == "bool":
-        p_true = sigmoid(float(logits[0]), temperature)
+        p_true = sigmoid(float(logits[0]), temperature, bias)
         return {
             "answer": p_true >= 0.5,
             "p_true": p_true,
@@ -110,7 +115,10 @@ class Model:
         handle = self.encode(image)
         return {
             q.id: format_answer(
-                q, self.backend.logits(handle, state_text, q), self.temperatures[q.type]
+                q,
+                self.backend.logits(handle, state_text, q),
+                self.temperatures[q.type],
+                self.temperatures["bool_bias"] if q.type == "bool" else 0.0,
             )
             for q in parsed
         }
