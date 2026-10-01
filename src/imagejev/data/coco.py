@@ -56,6 +56,7 @@ def iter_coco(
     licenses: frozenset[int] | set[int] | None = None,
     bool_per_image: int = 2,
     count_per_image: int = 1,
+    choice_per_image: int = 2,
     image_dir: str | None = None,
 ) -> Iterator[ImageFacts | QuestionRecord]:
     """Yield an ``ImageFacts`` and several ``QuestionRecord``s per annotated image.
@@ -123,6 +124,9 @@ def iter_coco(
         }
         yield ImageFacts(iid, "photo", SOURCE, facts, image_path=path)
         rng = _rng(seed, iid)
+        any_present = set(facts["present_any"])
+        crowd_cats = set(facts["crowd"])
+        counts_all = facts["counts_all"]
         present = sorted(counts)
         absent = [n for n in names if n not in counts]
 
@@ -183,6 +187,54 @@ def iter_coco(
                     "criteria": {o: super_desc[o] for o in options},
                 },
                 top_super,
+            )
+
+        # choice: which object is present (every distractor is annotated nowhere in the image)
+        never = [n for n in names if n not in any_present]
+        if present and len(never) >= 3 and choice_per_image >= 1:
+            answer = rng.choice(present)
+            mates = [n for n in by_super[super_of[answer]] if n in never]
+            others = [n for n in never if n not in mates]
+            rng.shuffle(mates)
+            rng.shuffle(others)
+            k = rng.choice([3, 5, 7])
+            options = [answer, *(mates + others)[:k]]
+            rng.shuffle(options)
+            yield rec(
+                "coco.which_present",
+                {
+                    "type": "choice",
+                    "instructions": "Which of these objects appears in the image?",
+                    "criteria": {o: "" for o in options},
+                },
+                answer,
+            )
+
+        # choice: which object appears most often, only when that is unambiguous. Needs a unique
+        # maximum of at least 2, no crowd boxes (their counts are meaningless) and visible counts
+        # that match the exact counts, so a hidden tiny instance cannot change the answer.
+        ranked = sorted(counts.items(), key=lambda kv: -kv[1])
+        clear = (
+            len(ranked) >= 2
+            and ranked[0][1] >= 2
+            and ranked[0][1] > ranked[1][1]
+            and not crowd_cats
+            and all(counts_all.get(n) == c for n, c in counts.items())
+            and set(counts_all) == set(counts)
+        )
+        if clear and choice_per_image >= 2:
+            top = ranked[0][0]
+            pool = [n for n in names if n != top]
+            options = [top, *rng.sample(pool, min(3, len(pool)))]
+            rng.shuffle(options)
+            yield rec(
+                "coco.most_frequent",
+                {
+                    "type": "choice",
+                    "instructions": "Which kind of object appears most often in the image?",
+                    "criteria": {o: "" for o in options},
+                },
+                top,
             )
 
 
