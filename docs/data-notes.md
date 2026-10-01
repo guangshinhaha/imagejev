@@ -8,7 +8,8 @@ Findings from inspecting the real sources while writing the adapters. The point 
 - val2017 annotations: 4,807 of 5,000 images have a visible object; 18,536 questions at defaults.
 - COCO supercategory names ("outdoor", "accessory", "indoor") are meaningless on their own, so each
   option in `coco.dominant_supercategory` is described by its member categories.
-- License: annotations CC BY 4.0; images are Flickr images with individual licenses. See #15.
+- License: annotations CC BY 4.0; images are Flickr images with individual licenses (about 70% of
+  val2017 are NonCommercial). See `docs/data-licenses.md`.
 
 ## Rico (`data/rico.py`)
 
@@ -36,12 +37,12 @@ Findings from inspecting the real sources while writing the adapters. The point 
 - "Screen type" (login, settings, ...) is not labelled in Rico and can't be derived from the
   activity name without noise. Exact screen-type labels come from the synthetic generator (#10).
 - Real-screenshot size: about 100 KB per screen (a 322 MB shard holds 3,312).
-- License on the Hub card: `unknown`. See #15.
+- License on the Hub card: `unknown`, but the real terms restrict redistribution. See
+  `docs/data-licenses.md`.
 
 ## RVL-CDIP (`data/rvlcdip.py`)
 
 - Hub repo `aharley/rvl_cdip`: 16 classes; 320k train / 40k val / 40k test; **a single 38.8 GB
   `tar.gz`**. Don't download it whole; stream a subset when building the feature cache (#17).
 - License on the Hub card: `other` (scanned tobacco-industry documents from the IIT-CDIP
-  collection). Redistribution of the images is unclear, so only labels and IDs may be published
-  until #15 settles it.
+  collection). Redistribution of the images is not permitted; see `docs/data-licenses.md`.
