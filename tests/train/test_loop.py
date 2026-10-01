@@ -3,8 +3,8 @@ import math
 
 import numpy as np
 import pytest
-import torch
 
+torch = pytest.importorskip("torch")
 pytest.importorskip("transformers")
 
 from imagejev.data.records import QuestionRecord  # noqa: E402
