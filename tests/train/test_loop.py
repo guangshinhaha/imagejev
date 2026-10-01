@@ -204,3 +204,40 @@ def test_amp_is_ignored_off_cuda(tmp_path):
     assert t.use_amp is False
     t.run()
     assert t.step == 2
+
+
+def test_time_budget_stops_saves_and_chained_sessions_equal_one_run(tmp_path, single_thread):
+    straight = make_trainer(tmp_path / "straight", steps=12)
+    assert straight.run() is True
+
+    out = tmp_path / "sessions"
+    sessions, finished = 0, False
+    while not finished:
+        t = make_trainer(out, steps=12, time_budget_minutes=1e-9)  # a budget that is already spent
+        finished = t.run()  # a fresh "session": new process state, same output directory
+        sessions += 1
+        assert t.step >= sessions or finished  # every session makes progress
+        assert (out / "last.pt").exists()
+        assert sessions < 40
+    assert sessions == 12 and t.step == 12  # one step per session with such a budget
+    for a, b in zip(params_of(straight), params_of(t), strict=True):
+        assert torch.equal(a, b)
+    losses = [float(r["loss"]) for r in csv.DictReader((out / "train_log.csv").open())]
+    assert len(losses) == 12 and losses == [
+        float(r["loss"]) for r in csv.DictReader((tmp_path / "straight" / "train_log.csv").open())
+    ]
+
+
+def test_a_generous_budget_does_not_interrupt(tmp_path):
+    t = make_trainer(tmp_path, steps=6, time_budget_minutes=60)
+    assert t.run() is True and t.step == 6
+
+
+def test_bf16_autocast_wiring_runs_on_cpu(tmp_path):
+    t = make_trainer(tmp_path, steps=3, amp="bf16")
+    assert t.use_amp is True
+    assert t.run() is True
+    losses = [float(r["loss"]) for r in csv.DictReader((tmp_path / "train_log.csv").open())]
+    assert len(losses) == 3 and all(math.isfinite(x) for x in losses)
+    preds = t.predict(t.eval_sets["val"][:6])
+    assert len(preds) == 6 and all(abs(p.p.sum() - 1) < 1e-3 for p in preds)

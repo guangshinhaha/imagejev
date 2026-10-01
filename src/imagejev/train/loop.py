@@ -61,6 +61,7 @@ class TrainConfig:
     eval_files: dict[str, str] = field(default_factory=dict)
     select_on: str = "val"
     max_eval_questions: int | None = None
+    time_budget_minutes: float | None = None  # stop and save after this long (session limits)
     cache_dir: str = ""
     out_dir: str = "runs/run"
 
@@ -202,7 +203,10 @@ class Trainer:
             [lambda s, b=1.0: lr_factor(s, cfg.warmup_steps, cfg.steps, cfg.min_lr_frac)]
             * len(base),
         )
-        self.use_amp = cfg.amp != "none" and self.device.type == "cuda"
+        # fp16 autocast needs CUDA; bf16 also works on CPU, which is how the wiring is tested
+        self.use_amp = cfg.amp != "none" and (
+            self.device.type == "cuda" or (self.device.type == "cpu" and cfg.amp == "bf16")
+        )
         self.amp_dtype = torch.float16 if cfg.amp == "fp16" else torch.bfloat16
         self.scaler = torch.amp.GradScaler(enabled=self.use_amp and cfg.amp == "fp16")
         self.rng = random.Random(cfg.seed)
@@ -263,8 +267,9 @@ class Trainer:
         self.text.clear_cache()  # LoRA weights just changed
         preds: list[Prediction] = []
         for i in range(0, len(records), chunk):
-            prep = self.builder.build(records[i : i + chunk])
-            logits = self.fusion(prep.batch).float().cpu()
+            with torch.autocast(self.device.type, dtype=self.amp_dtype, enabled=self.use_amp):
+                prep = self.builder.build(records[i : i + chunk])
+                logits = self.fusion(prep.batch).float().cpu()
             start = 0
             for rec, q in zip(prep.records, prep.questions, strict=True):
                 n = 1 if q.type == "bool" else len(q.options)
@@ -314,8 +319,8 @@ class Trainer:
     def train_step(self) -> dict[str, float]:
         t0 = time.perf_counter()
         groups = self.sampler.sample_batch(self.rng)
-        prep = self.builder.build([r for g in groups for r in g])
         with torch.autocast(self.device.type, dtype=self.amp_dtype, enabled=self.use_amp):
+            prep = self.builder.build([r for g in groups for r in g])
             logits = self.fusion(prep.batch)
         out = fusion_loss(logits.float(), prep.batch, prep.targets, rps_weight=self.cfg.rps_weight)
         self.opt.zero_grad(set_to_none=True)
@@ -338,13 +343,20 @@ class Trainer:
             "seconds": time.perf_counter() - t0,
         }
 
-    def run(self, on_step: Callable[[int], None] | None = None, resume: bool = True) -> None:
+    def run(self, on_step: Callable[[int], None] | None = None, resume: bool = True) -> bool:
+        """Train to ``cfg.steps``; returns False if it stopped early on the time budget.
+
+        On a budget stop the latest state is saved to ``last.pt``, so running again (in a new
+        session) continues exactly where this one stopped.
+        """
         random.seed(self.cfg.seed)
         np.random.seed(self.cfg.seed)
         torch.manual_seed(self.cfg.seed)
         last = self.out / "last.pt"
         if resume and last.exists():
             self.load(last)
+        budget = self.cfg.time_budget_minutes
+        deadline = time.monotonic() + budget * 60 if budget else None
         self.fusion.train()
         self.text.train()
         while self.step < self.cfg.steps:
@@ -356,6 +368,10 @@ class Trainer:
                 self.run_eval()
             if self.step % self.cfg.ckpt_every == 0 or self.step == self.cfg.steps:
                 self.save()
+            if deadline is not None and time.monotonic() >= deadline and self.step < self.cfg.steps:
+                self.save()
+                return False
+        return True
 
 
 def build_trainer(cfg: TrainConfig) -> Trainer:
@@ -398,21 +414,29 @@ def main() -> None:
     ap.add_argument("--config", required=True)
     ap.add_argument("--fresh", action="store_true", help="ignore an existing last.pt")
     ap.add_argument("--steps", type=int, default=None, help="override the config's step count")
+    ap.add_argument("--time-budget-minutes", type=float, default=None)
     args = ap.parse_args()
     cfg = TrainConfig.from_yaml(args.config)
     if args.steps:
         cfg.steps = args.steps
+    if args.time_budget_minutes:
+        cfg.time_budget_minutes = args.time_budget_minutes
     trainer = build_trainer(cfg)
     n_train = sum(p.numel() for p in trainer.fusion.parameters() if p.requires_grad)
     n_lora = sum(p.numel() for p in trainer.text.lora_parameters())
     print(
         f"device {trainer.device}; trainable: fusion {n_train / 1e6:.1f}M, LoRA {n_lora / 1e6:.1f}M"
     )
-    trainer.run(
+    finished = trainer.run(
         resume=not args.fresh,
         on_step=lambda s: print(f"step {s}", flush=True) if s % 10 == 0 else None,
     )
-    print(f"done at step {trainer.step}; best {cfg.select_on} macro log loss {trainer.best:.4f}")
+    if finished:
+        print(
+            f"done at step {trainer.step}; best {cfg.select_on} macro log loss {trainer.best:.4f}"
+        )
+    else:
+        print(f"time budget reached at step {trainer.step}/{cfg.steps}; run again to resume")
 
 
 if __name__ == "__main__":
