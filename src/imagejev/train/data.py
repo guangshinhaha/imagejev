@@ -30,7 +30,7 @@ def option_texts(q: Question) -> list[str | None]:
 
 def target_vector(rec: QuestionRecord, q: Question) -> list[float]:
     if q.type == "bool":
-        return [1.0 if rec.answer else 0.0]
+        return [float(rec.soft["true"]) if rec.soft is not None else (1.0 if rec.answer else 0.0)]
     if rec.soft is not None:
         return [float(rec.soft[label]) for label in q.labels]
     t = [0.0] * len(q.options)

@@ -179,6 +179,10 @@ def build_splits(
     dropped: Counter = Counter()
     for r in records:
         s = group_split[group_id(r)]
+        if r.soft is not None and s != "train":
+            # Teacher probabilities are not ground truth: they may train the model, never grade it.
+            dropped["teacher-labelled question outside train"] += 1
+            continue
         if s in ("test-tasks", "val-tasks"):
             own = heldout_tasks if s == "test-tasks" else val_tasks
             if r.task in own:
@@ -214,6 +218,7 @@ def check_splits(result: SplitResult, config: dict[str, Any] | None = None) -> N
                 assert r.task not in val_tasks, f"validation task {r.task} in {s}"
             if s in ("train", "val", "val-tasks", "test-images", "test-tasks"):
                 assert not is_heldout_style(r.style, cfg["style_patterns"]), f"style leak in {s}"
+            assert r.soft is None or s == "train", f"teacher-labelled question in {s}"
             is_ext = r.source.startswith(cfg["external_source_prefix"])
             assert is_ext == (s == "test-external"), f"{r.source} in {s}"
 

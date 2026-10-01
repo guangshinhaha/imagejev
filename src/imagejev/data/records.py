@@ -43,7 +43,8 @@ class QuestionRecord:
     task: str  # task family, e.g. "coco.object_present"; unit of held-out-task splits
     question: dict[str, Any]  # same shape as the public API question spec
     answer: str | bool
-    soft: dict[str, float] | None = None  # teacher probabilities over option labels
+    # teacher probabilities: over the option labels, or {"true": p} for a bool question
+    soft: dict[str, float] | None = None
     style: str | None = None
     meta: dict[str, Any] = field(default_factory=dict)
 
@@ -57,10 +58,16 @@ class QuestionRecord:
         elif self.answer not in q.labels:
             raise ValueError(f"{self.task}: answer {self.answer!r} not in options {q.labels}")
         if self.soft is not None:
-            if q.type == "bool" or set(self.soft) != set(q.labels):
-                raise ValueError(f"{self.task}: soft labels must cover exactly the options")
-            if abs(sum(self.soft.values()) - 1.0) > 1e-3:
-                raise ValueError(f"{self.task}: soft labels must sum to 1")
+            if q.type == "bool":
+                if set(self.soft) != {"true"} or not 0.0 <= self.soft["true"] <= 1.0:
+                    raise ValueError(
+                        f"{self.task}: a bool soft label is {{'true': p}} with p in [0, 1]"
+                    )
+            else:
+                if set(self.soft) != set(q.labels):
+                    raise ValueError(f"{self.task}: soft labels must cover exactly the options")
+                if abs(sum(self.soft.values()) - 1.0) > 1e-3:
+                    raise ValueError(f"{self.task}: soft labels must sum to 1")
 
 
 def write_jsonl(records: Iterable[Any], path: str | Path) -> int:
