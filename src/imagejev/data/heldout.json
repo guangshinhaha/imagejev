@@ -1,0 +1,27 @@
+{
+  "_comment": "Which task families and styles are never trained on. Committed so the claim 'following criteria it has never seen' is auditable. Changing this changes every split, so do it before any training run.",
+  "task_families": {
+    "coco.dominant_supercategory": "photo, choice: needs reading the option descriptions, not memorising labels",
+    "comp.photo.more_of": "photo, bool: comparing two counts, a structure never seen in training",
+    "doc.merchant_type": "document, choice: business type from receipt content",
+    "doc.item_count": "document, score: counting lines",
+    "comp.doc.total_between": "document, bool: range test on a number read from the page",
+    "web.cart_empty": "screenshot, bool: a message-reading question",
+    "web.input_count": "screenshot, score: counting form fields",
+    "comp.screen.form_and_captcha": "screenshot, bool: a conjunction of two UI facts",
+    "quality.jpeg": "all domains, score: compression artifacts"
+  },
+  "style_patterns": [
+    "*:t10",
+    "*:t11",
+    "receipt:c",
+    "invoice:c"
+  ],
+  "external_source_prefix": "ext:",
+  "group_fractions": {
+    "train": 0.82,
+    "val": 0.04,
+    "test-images": 0.06,
+    "test-tasks": 0.08
+  }
+}
