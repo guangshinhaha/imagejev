@@ -2,6 +2,7 @@ import pytest
 
 from imagejev.data.coco import (
     COUNT_LEVELS,
+    PERMISSIVE_LICENSE_IDS,
     count_level,
     iter_coco,
     iter_vqav2_yesno,
@@ -159,3 +160,19 @@ def test_records_validate_answers():
             {"type": "choice", "instructions": "x", "criteria": {"a": "", "b": ""}},
             "z",
         )
+
+
+def test_license_filter_keeps_only_listed_licenses_and_records_the_license():
+    import copy
+
+    inst = copy.deepcopy(INSTANCES)
+    inst["images"][0]["license"] = 4  # CC BY
+    inst["images"][1]["license"] = 1  # CC BY-NC-SA
+    inst["images"][2]["license"] = 6  # CC BY-ND
+    everything = [r for r in iter_coco(inst) if isinstance(r, ImageFacts)]
+    assert {f.facts["license"] for f in everything} == {4, 1}  # image 3 has nothing visible
+    kept = [r for r in iter_coco(inst, licenses=PERMISSIVE_LICENSE_IDS)]
+    assert {r.image_id for r in kept} == {"coco:000000000001"}
+    assert all(f.facts["license"] == 4 for f in kept if isinstance(f, ImageFacts))
+    assert PERMISSIVE_LICENSE_IDS == {4, 5, 7, 8}
+    assert not list(iter_coco(inst, licenses=set()))

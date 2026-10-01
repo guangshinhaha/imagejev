@@ -13,6 +13,12 @@ from typing import Any
 from .records import ImageFacts, QuestionRecord
 
 SOURCE = "coco"
+
+# COCO records a Flickr license per image (ids from the file's ``licenses`` table). Only these may
+# be redistributed or modified: 4 CC BY, 5 CC BY-SA, 7 no known restrictions, 8 US government work.
+# The rest are NonCommercial (1, 2, 3) and/or NoDerivs (3, 6); a blurred copy is a derivative.
+# See docs/data-licenses.md.
+PERMISSIVE_LICENSE_IDS = frozenset({4, 5, 7, 8})
 COUNT_LEVELS = ["none", "one", "a few", "many"]
 
 
@@ -47,6 +53,7 @@ def iter_coco(
     seed: int = 0,
     min_area_frac: float = 0.005,
     min_dominance: float = 0.6,
+    licenses: frozenset[int] | set[int] | None = None,
     bool_per_image: int = 2,
     count_per_image: int = 1,
     image_dir: str | None = None,
@@ -54,7 +61,8 @@ def iter_coco(
     """Yield an ``ImageFacts`` and several ``QuestionRecord``s per annotated image.
 
     Only non-crowd instances covering at least ``min_area_frac`` of the image count as visible,
-    so labels aren't decided by specks. Images with no visible objects are skipped. The
+    so labels aren't decided by specks. Pass ``licenses=PERMISSIVE_LICENSE_IDS`` to keep only
+    images that may be redistributed or modified. Images with no visible objects are skipped. The
     dominant-supercategory question is only asked when one supercategory covers at least
     ``min_dominance`` of the visible object area, so its label is unambiguous.
     """
@@ -75,6 +83,8 @@ def iter_coco(
     super_desc = {s: ", ".join(sorted(by_super[s])[:6]) for s in supers}
 
     for img in sorted(instances["images"], key=lambda i: i["id"]):
+        if licenses is not None and img.get("license") not in licenses:
+            continue
         area = img["width"] * img["height"]
         vis = [
             a
@@ -98,6 +108,7 @@ def iter_coco(
             if not a.get("iscrowd", 0):
                 counts_all[cats[a["category_id"]]["name"]] += 1
         facts = {
+            "license": img.get("license"),
             "counts": dict(sorted(counts.items())),
             # Every annotated category at any size, and exact counts of non-crowd instances at any
             # size. Compositional questions only claim "no X" or "N X" when these agree with the
