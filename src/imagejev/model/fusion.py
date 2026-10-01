@@ -91,6 +91,7 @@ class FusionBatch:
     image: torch.Tensor  # (Q, 65, d_image) cached SigLIP features
     state_tokens: torch.Tensor | None = None  # (Q, Ls, d_text)
     state_mask: torch.Tensor | None = None  # (Q, Ls) bool
+    opt_focus: torch.Tensor | None = None  # (N, L) bool: tokens to pool; default = opt_mask
 
     def n_options(self) -> torch.Tensor:
         """Options per question, shape (Q,)."""
@@ -148,9 +149,9 @@ class FusionModel(nn.Module):
         for block in self.blocks:
             x = block(x, x_pad, memory, mem_pad)
         x = self.out_norm(x)
-        keep = b.opt_mask.unsqueeze(-1).to(x.dtype)
-        mean = (x * keep).sum(1) / keep.sum(1).clamp(min=1)
-        return x[:, 0] + mean  # [CLS] + mean over real tokens
+        focus = b.opt_focus if b.opt_focus is not None else b.opt_mask
+        keep = focus.unsqueeze(-1).to(x.dtype)
+        return (x * keep).sum(1) / keep.sum(1).clamp(min=1)  # mean over the option's own tokens
 
     def rank_features(self, b: FusionBatch) -> torch.Tensor:
         """(N, 2): normalised level position for score options, zeros (and no flag) otherwise."""
