@@ -313,8 +313,10 @@ def questions_for(spec: DocSpec, labels: dict[str, Any], seed: int) -> list[Ques
     def rec(task: str, q: dict[str, Any], answer: Any) -> QuestionRecord:
         return QuestionRecord(iid, "document", SOURCE, task, q, answer, style=spec.style)
 
-    def boolq(task: str, text: str, answer: bool) -> QuestionRecord:
-        return rec(task, {"type": "bool", "instructions": text}, answer)
+    def boolq(task: str, text: str, answer: bool, **meta: Any) -> QuestionRecord:
+        r = rec(task, {"type": "bool", "instructions": text}, answer)
+        r.meta.update(meta)
+        return r
 
     out = [
         rec(
@@ -376,6 +378,7 @@ def questions_for(spec: DocSpec, labels: dict[str, Any], seed: int) -> list[Ques
                 "doc.total_over",
                 f"Is the total amount more than {money(threshold)}?",
                 spec.total > threshold,
+                threshold=money(threshold),
             )
         )
         out.append(

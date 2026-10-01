@@ -92,8 +92,21 @@ def iter_coco(
             super_area[c["supercategory"]] += a["area"]
         path = f"{image_dir}/{img['file_name']}" if image_dir else img.get("file_name")
         top_super = max(super_area, key=super_area.__getitem__)
+        everything = anns.get(img["id"], [])
+        counts_all: dict[str, int] = defaultdict(int)
+        for a in everything:
+            if not a.get("iscrowd", 0):
+                counts_all[cats[a["category_id"]]["name"]] += 1
         facts = {
             "counts": dict(sorted(counts.items())),
+            # Every annotated category at any size, and exact counts of non-crowd instances at any
+            # size. Compositional questions only claim "no X" or "N X" when these agree with the
+            # visible counts, so a tiny or crowd-labelled object can't make a label wrong.
+            "present_any": sorted({cats[a["category_id"]]["name"] for a in everything}),
+            "counts_all": dict(sorted(counts_all.items())),
+            "crowd": sorted(
+                {cats[a["category_id"]]["name"] for a in everything if a.get("iscrowd", 0)}
+            ),
             "top_supercategory": top_super,
             "top_supercategory_share": super_area[top_super] / sum(super_area.values()),
         }

@@ -1,0 +1,467 @@
+{
+ "_prefixes": [
+  "",
+  "Look at the image. ",
+  "Based on what you see: ",
+  "Inspect this image carefully. ",
+  "Answer from the image alone. "
+ ],
+ "coco.object_present": {
+  "slots": [
+   "x"
+  ],
+  "stems": [
+   "Is there {x} in the image?",
+   "Does this picture contain {x}?",
+   "Can you see {x} in this photo?",
+   "Is {x} visible anywhere in the image?",
+   "Would you say {x} appears in this scene?"
+  ]
+ },
+ "coco.count_bin": {
+  "slots": [
+   "cat"
+  ],
+  "stems": [
+   "How many {cat} instances are in the image?",
+   "Count the {cat} instances in this photo.",
+   "Roughly how many {cat} can you find here?",
+   "How many {cat} instances does this picture show?",
+   "What is the number of {cat} instances in the scene?"
+  ]
+ },
+ "coco.dominant_supercategory": {
+  "slots": [],
+  "stems": [
+   "Which kind of object takes up the most of the image?",
+   "What type of object is most prominent in this photo?",
+   "Which category of object dominates the scene?",
+   "The largest objects in this image belong to which group?",
+   "Which of these kinds of objects covers the most area?"
+  ]
+ },
+ "rvl.doc_type": {
+  "slots": [],
+  "stems": [
+   "What type of document is this?",
+   "Which kind of document does this page show?",
+   "Classify this scanned document.",
+   "What sort of document is pictured?",
+   "This page is best described as which document type?"
+  ]
+ },
+ "rico.element_present": {
+  "slots": [
+   "x"
+  ],
+  "stems": [
+   "Does this screen show {x}?",
+   "Is there {x} on this app screen?",
+   "Can you see {x} in this screenshot?",
+   "Does the user interface include {x}?",
+   "Is {x} displayed here?"
+  ]
+ },
+ "rico.keyboard_open": {
+  "slots": [],
+  "stems": [
+   "Is the on-screen keyboard open?",
+   "Is a keyboard showing on this screen?",
+   "Has the soft keyboard been brought up?",
+   "Can you see the on-screen keyboard?",
+   "Is the keyboard currently displayed?"
+  ]
+ },
+ "web.page_type": {
+  "slots": [],
+  "stems": [
+   "What kind of web page is this?",
+   "Which type of page does this screenshot show?",
+   "Classify this web page.",
+   "This web page is best described as what?",
+   "What is the purpose of this page?"
+  ]
+ },
+ "web.modal_open": {
+  "slots": [],
+  "stems": [
+   "Is a dialog or popup open on top of the page?",
+   "Is there a modal window showing?",
+   "Has a popup appeared over the page?",
+   "Is a dialog box currently displayed?",
+   "Can you see an overlay dialog on this page?"
+  ]
+ },
+ "web.error_banner": {
+  "slots": [],
+  "stems": [
+   "Is an error message banner shown?",
+   "Does the page display an error banner?",
+   "Is there a red error notice on this page?",
+   "Is something reported as having gone wrong here?",
+   "Can you see an error message?"
+  ]
+ },
+ "web.loading": {
+  "slots": [],
+  "stems": [
+   "Is the page showing a loading spinner?",
+   "Is this page still loading?",
+   "Can you see a loading indicator?",
+   "Is a progress spinner displayed?",
+   "Does the page appear to be waiting for something to load?"
+  ]
+ },
+ "web.cookie_banner": {
+  "slots": [],
+  "stems": [
+   "Is a cookie consent banner shown?",
+   "Does the page ask for cookie consent?",
+   "Can you see a cookie notice?",
+   "Is there a cookie banner at the edge of the page?",
+   "Is the visitor being asked to accept cookies?"
+  ]
+ },
+ "web.captcha": {
+  "slots": [],
+  "stems": [
+   "Is a CAPTCHA checkbox shown?",
+   "Does the page contain an 'I'm not a robot' check?",
+   "Can you see a CAPTCHA?",
+   "Is the user asked to prove they are human?",
+   "Is there a robot-verification box on the page?"
+  ]
+ },
+ "web.cart_empty": {
+  "slots": [],
+  "stems": [
+   "Does the page say the shopping cart is empty?",
+   "Is the cart empty?",
+   "Is there a message that the cart has nothing in it?",
+   "Does the store show an empty basket?",
+   "Can you tell the shopping cart contains no items?"
+  ]
+ },
+ "web.cta_clickable": {
+  "slots": [],
+  "stems": [
+   "Can the main call-to-action button be clicked right now without scrolling?",
+   "Is the primary button visible and usable without scrolling?",
+   "Could a user press the main action button immediately, without scrolling?",
+   "Is the main button on screen and not covered by anything?",
+   "Is the page's key action button reachable right now?"
+  ]
+ },
+ "web.input_count": {
+  "slots": [],
+  "stems": [
+   "How many form input fields are visible?",
+   "How many text boxes can you see on this page?",
+   "Count the visible input fields.",
+   "How many fields could the user type into right now?",
+   "What is the number of visible form inputs?"
+  ]
+ },
+ "doc.type": {
+  "slots": [],
+  "stems": [
+   "What kind of document is this?",
+   "Is this a receipt, an invoice or a form?",
+   "Which type of document does this page show?",
+   "Identify this document.",
+   "This document is best described as which kind?"
+  ]
+ },
+ "doc.has_signature": {
+  "slots": [],
+  "stems": [
+   "Is there a handwritten signature on the page?",
+   "Has this document been signed?",
+   "Can you see a signature?",
+   "Does the page carry a handwritten signature?",
+   "Is the signature line filled in?"
+  ]
+ },
+ "doc.has_table": {
+  "slots": [],
+  "stems": [
+   "Does the page contain a table with ruled lines?",
+   "Is there a bordered table on this document?",
+   "Can you see a grid of ruled rows and columns?",
+   "Does the document include a table with visible lines?",
+   "Is a ruled table present?"
+  ]
+ },
+ "doc.has_stamp": {
+  "slots": [],
+  "stems": [
+   "Is there a stamp on the document?",
+   "Has the document been stamped?",
+   "Can you see a rubber stamp mark?",
+   "Does the page carry a stamp?",
+   "Is a stamp visible anywhere on the page?"
+  ]
+ },
+ "doc.stamp_text": {
+  "slots": [],
+  "stems": [
+   "Which stamp is on the document?",
+   "What does the stamp say?",
+   "Read the stamp on this page.",
+   "Which word is stamped on the document?",
+   "What is stamped on this page, if anything?"
+  ]
+ },
+ "doc.merchant_type": {
+  "slots": [],
+  "stems": [
+   "What kind of business issued this receipt?",
+   "Which type of merchant is this receipt from?",
+   "What sort of shop or business is named here?",
+   "This receipt comes from what kind of business?",
+   "What type of seller issued this receipt?"
+  ]
+ },
+ "doc.total_level": {
+  "slots": [],
+  "stems": [
+   "How large is the total amount due?",
+   "Roughly how big is the total on this document?",
+   "In which range does the total fall?",
+   "How much is the total, approximately?",
+   "What size is the final amount?"
+  ]
+ },
+ "doc.total_over": {
+  "slots": [
+   "thr"
+  ],
+  "stems": [
+   "Is the total amount more than {thr}?",
+   "Does the total exceed {thr}?",
+   "Is the final amount above {thr}?",
+   "Is this document's total greater than {thr}?",
+   "Does the amount due come to more than {thr}?"
+  ]
+ },
+ "doc.item_count": {
+  "slots": [],
+  "stems": [
+   "How many line items are listed?",
+   "How many items appear on this document?",
+   "Count the listed line items.",
+   "How many rows of items are there?",
+   "What is the number of items listed?"
+  ]
+ },
+ "quality.blur": {
+  "slots": [],
+  "stems": [
+   "How sharp is this image?",
+   "How in-focus is this picture?",
+   "Is this image sharp or blurry?",
+   "Rate the sharpness of this image.",
+   "How much blur does this image have?"
+  ]
+ },
+ "quality.noise": {
+  "slots": [],
+  "stems": [
+   "How much grain or noise does this image have?",
+   "How noisy is this picture?",
+   "Rate the noise level of this image.",
+   "Is this image clean or grainy?",
+   "How much visible noise is there?"
+  ]
+ },
+ "quality.jpeg": {
+  "slots": [],
+  "stems": [
+   "How visible are compression artifacts?",
+   "How much JPEG blockiness does this image show?",
+   "Rate the compression artifacts in this image.",
+   "Does this image show compression damage?",
+   "How heavily compressed does this image look?"
+  ]
+ },
+ "quality.brightness": {
+  "slots": [],
+  "stems": [
+   "How bright is this image?",
+   "How light or dark is this picture?",
+   "Rate the overall brightness of this image.",
+   "Is this image dark, normal or very bright?",
+   "How well lit does this image look?"
+  ]
+ },
+ "quality.tilt": {
+  "slots": [],
+  "stems": [
+   "How tilted is this page?",
+   "How skewed is this document?",
+   "Is this page level or rotated?",
+   "Rate how much this page is tilted.",
+   "By how much is this page rotated from upright?"
+  ]
+ },
+ "comp.photo.and_not": {
+  "slots": [
+   "a",
+   "b"
+  ],
+  "stems": [
+   "Is there {a} but not {b} in the image?",
+   "Does the image show {a} without {b}?",
+   "Can you see {a} while {b} is absent?",
+   "Is {a} present while {b} is nowhere to be seen?",
+   "Is it true that the picture has {a} and lacks {b}?"
+  ]
+ },
+ "comp.photo.or": {
+  "slots": [
+   "a",
+   "b"
+  ],
+  "stems": [
+   "Is there {a} or {b} in the image?",
+   "Does the picture contain {a} or {b}?",
+   "Can you see at least one of {a} or {b}?",
+   "Is either {a} or {b} visible?",
+   "Does this scene include {a} or {b}?"
+  ]
+ },
+ "comp.photo.more_than": {
+  "slots": [
+   "n",
+   "cat"
+  ],
+  "stems": [
+   "Are there more than {n} {cat} instances in the image?",
+   "Can you count over {n} {cat} instances here?",
+   "Does the photo show more than {n} {cat} instances?",
+   "Is the number of {cat} instances greater than {n}?",
+   "Do more than {n} {cat} instances appear in this scene?"
+  ]
+ },
+ "comp.photo.more_of": {
+  "slots": [
+   "a",
+   "b"
+  ],
+  "stems": [
+   "Are there more {a} instances than {b} instances?",
+   "Is the number of {a} instances larger than the number of {b} instances?",
+   "Does {a} outnumber {b} in this image?",
+   "Do you see more {a} instances than {b} instances?",
+   "Is {a} more numerous than {b} here?"
+  ]
+ },
+ "comp.doc.merchant_over": {
+  "slots": [
+   "merchant",
+   "thr"
+  ],
+  "stems": [
+   "Is this a receipt from {merchant} for more than {thr}?",
+   "Is this {merchant} receipt over {thr}?",
+   "Does this show {merchant} receipt with a total above {thr}?",
+   "Is this {merchant} receipt where the total exceeds {thr}?",
+   "Is it a receipt from {merchant} costing more than {thr}?"
+  ]
+ },
+ "comp.doc.signed_stamped": {
+  "slots": [],
+  "stems": [
+   "Is the document both signed and stamped?",
+   "Does the page have a signature and a stamp?",
+   "Has this document been signed and also stamped?",
+   "Can you see both a signature and a stamp?",
+   "Is it true that the page is signed and stamped?"
+  ]
+ },
+ "comp.doc.signature_or_table": {
+  "slots": [],
+  "stems": [
+   "Does the document have a signature or a table?",
+   "Is there either a signature or a ruled table?",
+   "Can you see a signature, a table, or both?",
+   "Does the page include a signature or a table?",
+   "Is at least one of a signature or a table present?"
+  ]
+ },
+ "comp.doc.total_between": {
+  "slots": [
+   "lo",
+   "hi"
+  ],
+  "stems": [
+   "Is the total between {lo} and {hi}?",
+   "Does the total fall between {lo} and {hi}?",
+   "Is the amount due at least {lo} and at most {hi}?",
+   "Is the final total within {lo} to {hi}?",
+   "Does the total lie in the range {lo} to {hi}?"
+  ]
+ },
+ "comp.doc.invoice_not_paid": {
+  "slots": [],
+  "stems": [
+   "Is this an invoice that is not stamped PAID?",
+   "Is this an unpaid invoice, one without a PAID stamp?",
+   "Is the document an invoice lacking a PAID stamp?",
+   "Is it an invoice, and is it not marked PAID?",
+   "Is this an invoice with no PAID stamp on it?"
+  ]
+ },
+ "comp.screen.page_with_error": {
+  "slots": [
+   "page"
+  ],
+  "stems": [
+   "Is this a {page} page with an error banner?",
+   "Is this a {page} page that shows an error message?",
+   "Does this {page} page display an error banner?",
+   "Is the page a {page} page and is an error shown?",
+   "Is an error banner visible on this {page} page?"
+  ]
+ },
+ "comp.screen.modal_and_cookie": {
+  "slots": [],
+  "stems": [
+   "Is a dialog open while a cookie banner is also showing?",
+   "Are both a popup dialog and a cookie banner visible?",
+   "Is there a modal window as well as a cookie notice?",
+   "Can you see a dialog together with a cookie banner?",
+   "Do a modal dialog and a cookie banner appear at the same time?"
+  ]
+ },
+ "comp.screen.cta_and_no_modal": {
+  "slots": [],
+  "stems": [
+   "Can the main button be clicked and no dialog is open?",
+   "Is the primary action reachable with no popup open?",
+   "Is the main button usable and is there no modal showing?",
+   "Could a user press the main button with no dialog in the way?",
+   "Is the key button clickable and the page free of popups?"
+  ]
+ },
+ "comp.screen.form_and_captcha": {
+  "slots": [],
+  "stems": [
+   "Does the page have at least two input fields and a CAPTCHA?",
+   "Are there two or more input fields along with a CAPTCHA?",
+   "Can you see a form with several inputs and a CAPTCHA?",
+   "Does this page show two or more fields and a robot check?",
+   "Is there a multi-field form that also has a CAPTCHA?"
+  ]
+ },
+ "comp.screen.loading_or_error": {
+  "slots": [],
+  "stems": [
+   "Is the page loading or showing an error?",
+   "Is there either a loading spinner or an error banner?",
+   "Is the page busy loading, or has it reported an error?",
+   "Can you see a spinner or an error message?",
+   "Is it true that the page is loading or showing an error?"
+  ]
+ }
+}
