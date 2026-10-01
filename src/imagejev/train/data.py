@@ -11,6 +11,7 @@ import torch
 
 from ..data.records import QuestionRecord
 from ..model.fusion import QTYPE_IDS, FusionBatch
+from ..model.prior import TextEmbedder, prior_from_embeddings, prior_texts
 from ..model.text import TextEncoder
 from ..schema import Question, parse_question
 
@@ -42,10 +43,34 @@ class BatchBuilder:
     """Builds a ``Prepared`` batch. ``features`` maps ``image_id`` to ``(65, d_image)`` features
     (a ``FeatureCache`` or any mapping)."""
 
-    def __init__(self, features: Mapping[str, Any], text: TextEncoder, device: torch.device | str):
+    def __init__(
+        self,
+        features: Mapping[str, Any],
+        text: TextEncoder,
+        device: torch.device | str,
+        prior: TextEmbedder | None = None,
+    ):
         self.features = features
         self.text = text
         self.device = torch.device(device)
+        self.prior = prior
+
+    def _prior(
+        self, records: Sequence[QuestionRecord], questions: Sequence[Question]
+    ) -> torch.Tensor:
+        """Zero-shot SigLIP logits for every option row, in the same order as the targets."""
+        assert self.prior is not None
+        per_q = [prior_texts(q) for q in questions]
+        unique = sorted({t for texts in per_q for t in texts})
+        emb = dict(zip(unique, self.prior.embed(unique), strict=True))
+        scale, bias = self.prior.scale_bias
+        rows = [
+            prior_from_embeddings(
+                np.stack([emb[t] for t in texts]), self._image(r.image_id)[0], scale, bias, q.type
+            )
+            for r, q, texts in zip(records, questions, per_q, strict=True)
+        ]
+        return torch.from_numpy(np.concatenate(rows)).float().to(self.device)
 
     def _image(self, image_id: str) -> np.ndarray:
         return np.asarray(self.features[image_id])
@@ -74,5 +99,6 @@ class BatchBuilder:
             slot=torch.tensor(slot, device=self.device),
             qtype=torch.tensor([QTYPE_IDS[q.type] for q in questions], device=self.device),
             image=image.to(self.device),
+            prior=self._prior(records, questions) if self.prior is not None else None,
         )
         return Prepared(batch, torch.tensor(targets, device=self.device), questions, list(records))

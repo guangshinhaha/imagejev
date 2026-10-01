@@ -57,6 +57,8 @@ class TrainConfig:
     n_blocks: int = 4
     heads: int = 8
     backbone: str = "answerdotai/ModernBERT-base"
+    use_prior: bool = True  # start from SigLIP's zero-shot logits (see model/prior.py)
+    prior_checkpoint: str = "google/siglip2-base-patch16-384"
     train_file: str = ""
     eval_files: dict[str, str] = field(default_factory=dict)
     select_on: str = "val"
@@ -173,12 +175,21 @@ class Trainer:
         features: Mapping[str, Any],
         train_records: Sequence[QuestionRecord],
         eval_sets: Mapping[str, Sequence[QuestionRecord]],
+        prior: Any = None,
     ):
         self.cfg = cfg
         self.device = cfg.resolve_device()
         self.text = text.to(self.device)
         self.fusion = fusion.to(self.device)
-        self.builder = BatchBuilder(features, self.text, self.device)
+        if getattr(fusion, "use_prior", False) and prior is None:
+            raise ValueError("the fusion model uses a prior but no prior embedder was given")
+        self.builder = BatchBuilder(features, self.text, self.device, prior=prior)
+        if prior is not None:  # embed every string once, up front
+            from ..model.prior import warm
+            from ..schema import parse_question
+
+            every = list(train_records) + [r for rs in eval_sets.values() for r in rs]
+            warm(prior, [parse_question(r.task, r.question) for r in every])
         self.sampler = BalancedSampler(
             train_records,
             SamplerConfig(
@@ -396,6 +407,14 @@ def build_trainer(cfg: TrainConfig) -> Trainer:
     text = TextEncoder.from_pretrained(
         cfg.backbone, rank=cfg.lora_rank, alpha=cfg.lora_alpha, dropout=cfg.dropout
     )
+    prior = None
+    if cfg.use_prior:
+        from ..backends.siglip import SigLIPBackend
+        from ..model.prior import SigLIPTextEmbedder
+
+        prior = SigLIPTextEmbedder(
+            SigLIPBackend(cfg.prior_checkpoint, device=str(cfg.resolve_device()))
+        )
     fusion = FusionModel(
         d_text=text.hidden,
         d_image=int(features.meta["shape"][1]),
@@ -403,8 +422,9 @@ def build_trainer(cfg: TrainConfig) -> Trainer:
         heads=cfg.heads,
         n_blocks=cfg.n_blocks,
         dropout=cfg.dropout,
+        use_prior=cfg.use_prior,
     )
-    return Trainer(cfg, text, fusion, features, train, evals)
+    return Trainer(cfg, text, fusion, features, train, evals, prior=prior)
 
 
 def main() -> None:

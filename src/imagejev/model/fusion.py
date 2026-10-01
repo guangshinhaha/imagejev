@@ -92,6 +92,7 @@ class FusionBatch:
     state_tokens: torch.Tensor | None = None  # (Q, Ls, d_text)
     state_mask: torch.Tensor | None = None  # (Q, Ls) bool
     opt_focus: torch.Tensor | None = None  # (N, L) bool: tokens to pool; default = opt_mask
+    prior: torch.Tensor | None = None  # (N,) zero-shot logits from SigLIP (see model/prior.py)
 
     def n_options(self) -> torch.Tensor:
         """Options per question, shape (Q,)."""
@@ -108,9 +109,11 @@ class FusionModel(nn.Module):
         n_blocks: int = 4,
         adapter_hidden: int = 1024,
         dropout: float = 0.0,
+        use_prior: bool = False,
     ):
         super().__init__()
         self.d = d
+        self.use_prior = use_prior
         self.text_adapter = _adapter(d_text, d, adapter_hidden)
         self.image_adapter = _adapter(d_image, d, adapter_hidden)
         self.patch_pos = nn.Parameter(torch.zeros(N_IMAGE_TOKENS, d))  # global + 8x8 grid
@@ -126,6 +129,12 @@ class FusionModel(nn.Module):
             [nn.Sequential(nn.Linear(d, d), nn.GELU(), nn.Linear(d, 1)) for _ in QTYPE_IDS]
         )
         nn.init.normal_(self.patch_pos, std=0.02)
+        if use_prior:
+            # Start exactly at the zero-shot prior: the correction is zero until it is learned.
+            for head in self.heads:
+                nn.init.zeros_(head[-1].weight)
+                nn.init.zeros_(head[-1].bias)
+            self.prior_gain = nn.Parameter(torch.ones(len(QTYPE_IDS)))
 
     # -- pieces -----------------------------------------------------------------------------
     def build_memory(self, b: FusionBatch) -> tuple[torch.Tensor, torch.Tensor]:
@@ -179,6 +188,12 @@ class FusionModel(nn.Module):
             sel = row_type == tid
             if sel.any():
                 logits[sel] = head(mixed[sel]).squeeze(-1).float()
+        if self.use_prior:
+            if b.prior is None:
+                raise ValueError(
+                    "this model was built with use_prior=True but the batch has no prior"
+                )
+            logits = logits + self.prior_gain[row_type] * b.prior.to(logits.dtype)
         return logits
 
 

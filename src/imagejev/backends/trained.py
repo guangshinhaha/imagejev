@@ -17,6 +17,7 @@ from PIL import Image
 
 from ..images import ImageHandle
 from ..model.fusion import QTYPE_IDS, FusionBatch, FusionModel
+from ..model.prior import SigLIPTextEmbedder, TextEmbedder, prior_from_embeddings, prior_texts
 from ..model.text import TextEncoder
 from ..schema import Question
 from ..train.data import option_texts
@@ -34,6 +35,7 @@ class TrainedBackend:
         vision: Any,
         device: str | torch.device,
         name: str = "imagejev",
+        prior: TextEmbedder | None = None,
     ):
         self.device = torch.device(device)
         self.text = text.to(self.device).eval()
@@ -41,6 +43,9 @@ class TrainedBackend:
         self.vision = vision
         self.encoder_id = vision.encoder_id
         self.name = name
+        if self.fusion.use_prior and prior is None:
+            prior = SigLIPTextEmbedder(vision)  # the vision backend also owns SigLIP's text tower
+        self.prior = prior
 
     def encode_image(self, image: Image.Image) -> np.ndarray:
         return self.vision.encode_image(image)
@@ -50,6 +55,15 @@ class TrainedBackend:
         segs = option_texts(question)
         enc = self.text.encode_pairs([question.instructions] * len(segs), segs)
         n = len(segs)
+        prior = None
+        if self.fusion.use_prior:
+            assert self.prior is not None
+            scale, bias = self.prior.scale_bias
+            emb = self.prior.embed(prior_texts(question))
+            raw = prior_from_embeddings(
+                emb, np.asarray(handle.features)[0], scale, bias, question.type
+            )
+            prior = torch.from_numpy(raw).float().to(self.device)
         st = self.text.encode_state(state)
         batch = FusionBatch(
             opt_tokens=enc.tokens,
@@ -61,6 +75,7 @@ class TrainedBackend:
             image=torch.from_numpy(np.asarray(handle.features)).float()[None].to(self.device),
             state_tokens=st.tokens if st else None,
             state_mask=st.mask if st else None,
+            prior=prior,
         )
         return self.fusion(batch).float().cpu().numpy()
 
@@ -95,6 +110,7 @@ def export_model(
             "heads": cfg["heads"],
             "n_blocks": cfg["n_blocks"],
             "adapter_hidden": int(ck["fusion"]["text_adapter.1.weight"].shape[0]),
+            "use_prior": "prior_gain" in ck["fusion"],
         },
         "trained_steps": int(ck["step"]),
         "selection_score": float(ck["best"]),
@@ -110,6 +126,7 @@ def load_trained(
     device: str | None = None,
     text: TextEncoder | None = None,
     vision: Any = None,
+    prior: TextEmbedder | None = None,
 ) -> tuple[TrainedBackend, dict[str, float] | None]:
     """Rebuild a model from ``export_model``'s directory. ``text`` and ``vision`` can be injected
     (tests use tiny stand-ins); by default the pretrained backbones are downloaded."""
@@ -135,10 +152,11 @@ def load_trained(
         heads=f["heads"],
         n_blocks=f["n_blocks"],
         adapter_hidden=f["adapter_hidden"],
+        use_prior=f.get("use_prior", False),
     )
     fusion.load_state_dict(load_file(d / WEIGHT_FILES[0]))
     if vision is None:
         vision = SigLIPBackend(cfg["vision_checkpoint"], device=dev)
-    backend = TrainedBackend(text, fusion, vision, dev, name=f"imagejev:{d.name}")
+    backend = TrainedBackend(text, fusion, vision, dev, name=f"imagejev:{d.name}", prior=prior)
     temps = load_temperatures(d) if (d / "temperatures.json").exists() else None
     return backend, temps
