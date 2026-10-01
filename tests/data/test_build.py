@@ -1,5 +1,6 @@
 import json
 
+import pytest
 from PIL import Image, ImageDraw
 
 from imagejev.data.build import (
