@@ -1,0 +1,27 @@
+# The v0 training run on a MacBook (MPS) over bench v1. Settings follow the spec (section 5);
+# the step count was chosen from the pilot (configs/pilot_v1.yaml).
+seed: 0
+device: auto
+steps: 3000
+eval_every: 250
+ckpt_every: 250
+images_per_batch: 16
+questions_per_image: 4
+teacher_fraction: 0.0   # raised to 0.15 once the teacher slice exists (#33)
+lr_fusion: 3.0e-4
+lr_lora: 1.0e-4
+weight_decay: 0.01
+warmup_steps: 100
+grad_clip: 1.0
+lora_rank: 16
+lora_alpha: 32.0
+d_model: 512
+n_blocks: 4
+heads: 8
+train_file: data/bench_v1/splits/train.jsonl
+eval_files:
+  val: data/bench_v1/splits/val.jsonl
+  val-tasks: data/bench_v1/splits/val-tasks.jsonl
+select_on: val-tasks   # unseen task families; the test families are never used for selection
+cache_dir: data/cache_v1
+out_dir: runs/v1
