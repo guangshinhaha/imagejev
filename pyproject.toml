@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "imagejev"
+version = "0.0.1"
+description = "Open System 1 decision engine for images: typed choice/score/bool decisions in one forward pass, with calibrated confidence."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+dependencies = ["numpy>=1.24", "pillow>=10.0"]
+
+[project.optional-dependencies]
+model = ["torch>=2.2", "transformers>=4.45", "safetensors>=0.4"]
+data = ["datasets>=2.19", "playwright>=1.44", "pyyaml>=6.0"]
+dev = ["pytest>=8.0", "ruff>=0.5"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/imagejev"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
