@@ -65,12 +65,17 @@ def subsample_images(
 
     The choice depends only on the ids (not on order or on the model), so every model evaluated
     with the same ``n`` and ``seed`` sees exactly the same questions.
+
+    The ordering key is salted so it is independent of the split builder's hash. Both use SHA-256
+    of the id, and the builder assigns a split by thresholding that hash; without the salt every
+    ordinary image in a hash-defined split sorts to the same end, and a "random" subset is made
+    of whatever images are *not* assigned by their own hash (the quality-degraded copies).
     """
     if n is None:
         return list(records)
     ids = sorted(
         {r.image_id for r in records},
-        key=lambda i: hashlib.sha256(f"{seed}:{i}".encode()).hexdigest(),
+        key=lambda i: hashlib.sha256(f"subsample|{seed}|{i}".encode()).hexdigest(),
     )
     keep = set(ids[:n])
     return [r for r in records if r.image_id in keep]
@@ -238,6 +243,7 @@ def run_benchmark(
     result: dict[str, Any] = {
         "model": model.name,
         "max_images_per_split": max_images_per_split,
+        "fit_on": fit_on,
         "splits": {},
     }
     if fit_on and fit_on in loaded and hasattr(model, "logits"):
@@ -265,7 +271,7 @@ def render_report(result: Mapping[str, Any]) -> str:
         ]
     if result.get("fitted_temperatures"):
         temps = ", ".join(f"{k}={v:.2f}" for k, v in result["fitted_temperatures"].items())
-        lines += [f"Temperatures fitted on val: {temps}", ""]
+        lines += [f"Calibration fitted on `{result.get('fit_on', 'val')}`: {temps}", ""]
     lat = result.get("latency")
     if lat:
         for kind in ("cold", "warm"):

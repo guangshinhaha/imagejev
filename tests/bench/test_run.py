@@ -170,7 +170,7 @@ def test_image_resolver_and_end_to_end_report(tmp_path):
     assert (
         rep.startswith("# color")
         and "### test-images" in rep
-        and "Temperatures fitted on val" in rep
+        and "Calibration fitted on `val`" in rep
     )
     saved = json.loads((tmp_path / "out" / "results.json").read_text())
     assert saved["model"] == "color" and saved["splits"]["val"]["stats"]["questions"] == 60
@@ -200,3 +200,24 @@ def test_run_benchmark_applies_the_cap_and_reports_it(tmp_path):
                         fit_on=None, latency_images=2, max_images_per_split=7)  # fmt: skip
     assert res["splits"]["val"]["stats"]["images"] == 7 and res["max_images_per_split"] == 7
     assert "at most 7 images" in (tmp_path / "o" / "report.md").read_text()
+
+
+def test_subsample_is_independent_of_the_split_builders_hash():
+    """Regression: the subsample once used the splitter's own hash, so inside a hash-defined split
+    it picked ids in splitter-bucket order (a 'random' subset was all quality-degraded copies)."""
+    from imagejev.bench.run import subsample_images
+    from imagejev.data.splits import _bucket
+
+    # 2,000 ids that the splitter would put in one split: their bucket falls in [0.86, 0.92)
+    ids = [f"img{i}" for i in range(60000) if 0.86 <= _bucket(0, f"img{i}") < 0.92][:600]
+    assert len(ids) == 600
+    recs = [QuestionRecord(i, "photo", "s", "t", BOOL, True) for i in ids]
+    # 400 more ids that are *not* in that bucket range (like quality copies, assigned via a source)
+    other = [f"q{i}" for i in range(400)]
+    recs += [QuestionRecord(i, "photo", "s", "t", BOOL, True) for i in other]
+    picked = {r.image_id for r in subsample_images(recs, 200, seed=0)}
+    share_other = sum(i in set(other) for i in picked) / 200
+    assert 0.25 < share_other < 0.55, share_other  # ~40% expected; the bug gave 100%
+    # and within the bucketed ids, the pick spans the bucket range instead of hugging one end
+    buckets = sorted(_bucket(0, i) for i in picked if i in set(ids))
+    assert buckets[-1] - buckets[0] > 0.04
