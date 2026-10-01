@@ -107,6 +107,13 @@ def _slots_for(rec: QuestionRecord) -> dict[str, str] | None:
 def _vary_choice(rec: QuestionRecord, rng: random.Random, p_none: float) -> QuestionRecord:
     q = dict(rec.question)
     options: dict[str, str] = dict(q["criteria"])
+    if rec.soft is not None:
+        # A teacher's probabilities are over exactly these options: dropping or adding options would
+        # make them wrong, so only the order changes (soft labels are keyed by label).
+        order = list(options)
+        rng.shuffle(order)
+        q["criteria"] = {k: options[k] for k in order}
+        return replace(rec, question=q)
     labels = list(options)
     answer = rec.answer
     groups = CONFUSABLE.get(rec.task, [])

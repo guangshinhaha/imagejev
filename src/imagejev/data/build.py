@@ -136,6 +136,7 @@ def main() -> None:
     ap.add_argument("--quality-sources", type=int, default=0, help="per domain")
     ap.add_argument("--reuse", action="store_true", help="keep web/docs output already on disk")
     ap.add_argument("--external", action="store_true", help="add the external test sets")
+    ap.add_argument("--teacher-file", default=None, help="teacher-labelled records (train only)")
     ap.add_argument("--pets-images", type=int, default=1200)
     ap.add_argument("--raw-dir", default="data/raw", help="where external parquet files are kept")
     args = ap.parse_args()
@@ -190,6 +191,12 @@ def main() -> None:
             ),
             "external",
         )
+    if args.teacher_file:
+        from .teacher import read_teacher_records
+
+        teacher = read_teacher_records(args.teacher_file)
+        print(f"teacher: {len(teacher)} soft-labelled questions", flush=True)
+        records.extend(teacher)
     report = assemble(records, facts, out, seed=args.seed)
     print(
         json.dumps({k: report[k] for k in ("questions", "image_groups", "thin_families")}, indent=2)
