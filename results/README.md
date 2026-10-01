@@ -5,6 +5,7 @@ Each folder is one model run through the same harness (`python -m imagejev.bench
 | Folder | Model |
 |---|---|
 | `siglip2-zeroshot/` | SigLIP 2 base/16 @384, zero-shot behind the typed API (the baseline) |
+| `smolvlm-500m/` | SmolVLM-500M-Instruct prompted with the question; option probabilities read from the next-token logits, no generation. Image features are cached after the first question |
 
 `bench_v0_splits_report.json` describes the data these numbers come from (question and image counts
 per split, and which held-out task families are still too small to measure; see `thin_families`).
@@ -32,3 +33,13 @@ shard of the Hub config `ui-screenshots-and-view-hierarchies`. COCO val2017 is u
   numbers are noisy. The real build needs several times more synthetic pages and documents.
 - No external test set yet (`test-external` is empty; see #22), and no RVL-CDIP documents.
 - Rico contributes only the verified dropdown/keyboard questions.
+
+## Reading the two baselines together
+
+On `test-images` (2,867 questions) SigLIP 2 zero-shot scores 0.623 accuracy and SmolVLM-500M 0.594.
+They are strong in different places: the VLM is far better at photo yes/no (0.80 vs 0.69) and
+SigLIP is far better at multiple choice (0.74 vs 0.48) and ordinal scores. Warm latency (image
+already encoded) is 0.4 ms for SigLIP and 69 ms for the VLM. A larger VLM would raise the bar:
+`--model smolvlm-2b` runs the 2.2B model through the same harness.
+
+Latencies are from one MacBook Pro (MPS). Kaggle T4 latencies are not measured yet (see #20).
