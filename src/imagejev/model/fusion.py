@@ -171,12 +171,14 @@ class FusionModel(nn.Module):
         grid[b.owner, b.slot] = vec
         pad[b.owner, b.slot] = False
         mixed = self.mix_norm(self.mixer(grid, pad))[b.owner, b.slot]
-        logits = vec.new_zeros(vec.shape[0])
+        # Logits stay float32 whatever the autocast dtype: the heads emit half precision under
+        # autocast, and writing that into a float32 buffer is an index_put dtype error.
+        logits = vec.new_zeros(vec.shape[0], dtype=torch.float32)
         row_type = b.qtype[b.owner]
         for tid, head in enumerate(self.heads):
             sel = row_type == tid
             if sel.any():
-                logits[sel] = head(mixed[sel]).squeeze(-1)
+                logits[sel] = head(mixed[sel]).squeeze(-1).float()
         return logits
 
 

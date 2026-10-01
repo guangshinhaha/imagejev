@@ -1,0 +1,28 @@
+# One Kaggle GPU session (T4, up to 9 h). Run it repeatedly: each session stops on the time budget,
+# saves last.pt, and the next session resumes from it. See docs/kaggle.md.
+seed: 0
+device: auto
+amp: fp16
+steps: 3000
+eval_every: 250
+ckpt_every: 100
+images_per_batch: 32
+questions_per_image: 4
+teacher_fraction: 0.15
+lr_fusion: 3.0e-4
+lr_lora: 1.0e-4
+weight_decay: 0.01
+warmup_steps: 100
+grad_clip: 1.0
+lora_rank: 16
+lora_alpha: 32.0
+d_model: 512
+n_blocks: 4
+heads: 8
+train_file: /kaggle/input/imagejev-data/splits/train.jsonl
+eval_files:
+  val: /kaggle/input/imagejev-data/splits/val.jsonl
+select_on: val
+cache_dir: /kaggle/input/imagejev-data/cache
+out_dir: /kaggle/working/runs/v0
+time_budget_minutes: 500   # a 9 h session is 540 min; leave room to save and for the final eval
