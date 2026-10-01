@@ -483,5 +483,85 @@
    "Which category has the highest count in the image?",
    "Of all the objects shown, which kind occurs most frequently?"
   ]
+ },
+ "fact.photo.object_variety": {
+  "slots": [],
+  "stems": [
+   "How many different kinds of object are in the photo?",
+   "How varied are the objects in this picture, counted by kind?",
+   "Count the different kinds of things shown in the photo.",
+   "How many distinct object types can you see?",
+   "What is the number of different object categories in this image?"
+  ]
+ },
+ "fact.photo.person_count": {
+  "slots": [],
+  "stems": [
+   "How many people are in the photo?",
+   "Count the people in this picture.",
+   "How many persons appear in the image?",
+   "What is the number of people shown here?",
+   "Roughly how many people can you see?"
+  ]
+ },
+ "fact.photo.total_objects": {
+  "slots": [],
+  "stems": [
+   "Roughly how many objects are in the photo in all?",
+   "How many things are there in total in this picture?",
+   "About how many objects does the image show altogether?",
+   "Estimate the total number of objects in the scene.",
+   "How crowded is the photo, counting every object?"
+  ]
+ },
+ "fact.screen.overlay_count": {
+  "slots": [],
+  "stems": [
+   "How many popups, banners or overlays are showing?",
+   "Count the overlays on the page (dialogs, banners, spinners).",
+   "How many things are covering or sitting on top of the page content?",
+   "How many notices or popups are currently visible?",
+   "What is the number of banners and popups shown?"
+  ]
+ },
+ "fact.screen.viewport": {
+  "slots": [],
+  "stems": [
+   "What kind of screen is this page shown on?",
+   "Is this page displayed on a computer or a phone?",
+   "Which device size does this screenshot come from?",
+   "Was this screenshot taken on a desktop window or a mobile screen?",
+   "What type of display is this page rendered on?"
+  ]
+ },
+ "fact.screen.overlay_kind": {
+  "slots": [],
+  "stems": [
+   "Which overlay is showing on the page?",
+   "What is covering or sitting on top of the page?",
+   "Which kind of popup or banner can you see?",
+   "What overlay does the page show right now?",
+   "Name the overlay that is visible on this page."
+  ]
+ },
+ "fact.doc.feature_count": {
+  "slots": [],
+  "stems": [
+   "How many of these does the page have: a signature, a stamp, a table?",
+   "Count how many of a signature, a stamp and a table appear on the page.",
+   "Out of signature, stamp and table, how many are present?",
+   "How many of the three marks (signature, stamp, table) does the document show?",
+   "What number of signature, stamp and table does the page include?"
+  ]
+ },
+ "fact.doc.tax_level": {
+  "slots": [],
+  "stems": [
+   "How much tax is charged on this document?",
+   "What is the tax rate on this page?",
+   "How high is the tax line on this document?",
+   "Is the tax on this document none, low, medium or high?",
+   "Roughly how much tax does this document charge?"
+  ]
  }
 }

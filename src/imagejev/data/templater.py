@@ -26,6 +26,7 @@ from importlib import resources
 from typing import Any
 
 from .docgen import MERCHANT_TYPES, money
+from .factq import generate as factq_generate
 from .records import ImageFacts, QuestionRecord
 from .rico import ELEMENTS
 from .rvlcdip import CONFUSABLE_GROUPS as RVL_GROUPS
@@ -348,8 +349,12 @@ def apply_templates(
     p_none: float = 0.1,
     comp_per_image: int = 2,
     balance: bool = True,
+    fact_questions: bool = True,
 ) -> list[QuestionRecord]:
     """The full templating pipeline; see the module docstring."""
+    facts = list(facts)
     out = [rewrite(r, seed, p_none) for r in records]
     out += compositional(facts, seed=seed, per_image=comp_per_image)
+    if fact_questions:
+        out += [rewrite(r, seed, p_none) for r in factq_generate(facts, seed=seed)]
     return balance_bools(out, seed=seed) if balance else out
