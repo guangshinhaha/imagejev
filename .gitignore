@@ -9,3 +9,5 @@ build/
 /runs/
 *.safetensors
 .DS_Store
+/data/
+/results-tmp/
