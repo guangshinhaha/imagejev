@@ -52,21 +52,25 @@ class SigLIPBackend:
         self._text_cache: dict[str, np.ndarray] = {}
 
     # -- image side -------------------------------------------------------------------------
-    def encode_image(self, image: Image.Image) -> np.ndarray:
+    def encode_images(self, images: list[Image.Image]) -> np.ndarray:
+        """Features for a batch: shape ``(B, 65, d)``, row 0 of each is the global token."""
         torch = self._torch
-        inputs = self.processor(images=image, return_tensors="pt").to(self.device)
+        inputs = self.processor(images=images, return_tensors="pt").to(self.device)
         with torch.no_grad():
             vision = self.model.vision_model(pixel_values=inputs["pixel_values"])
-            global_emb = vision.pooler_output  # (1, d): the vector used for zero-shot matching
-            patches = vision.last_hidden_state  # (1, n, d)
-        n = patches.shape[1]
+            global_emb = vision.pooler_output  # (B, d): the vector used for zero-shot matching
+            patches = vision.last_hidden_state  # (B, n, d)
+        b, n, d = patches.shape
         side = int(round(n**0.5))
         if side * side != n or side % POOL:
             raise ValueError(f"unexpected patch grid: {n} tokens")
-        grid = patches.reshape(1, side, side, -1).permute(0, 3, 1, 2)
-        pooled = torch.nn.functional.avg_pool2d(grid, POOL).flatten(2).transpose(1, 2)  # (1,64,d)
-        feats = torch.cat([global_emb[:, None, :], pooled], dim=1)[0]
+        grid = patches.reshape(b, side, side, d).permute(0, 3, 1, 2)
+        pooled = torch.nn.functional.avg_pool2d(grid, POOL).flatten(2).transpose(1, 2)  # (B,64,d)
+        feats = torch.cat([global_emb[:, None, :], pooled], dim=1)
         return feats.float().cpu().numpy().astype(np.float16)
+
+    def encode_image(self, image: Image.Image) -> np.ndarray:
+        return self.encode_images([image])[0]
 
     # -- text side --------------------------------------------------------------------------
     def _text_embeds(self, texts: list[str]) -> np.ndarray:
