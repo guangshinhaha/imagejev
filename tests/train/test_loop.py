@@ -252,3 +252,41 @@ def test_every_shipped_config_selects_on_an_eval_set_it_defines():
         cfg = TrainConfig.from_yaml(path)
         assert cfg.select_on in cfg.eval_files, path.name
         assert cfg.select_on == "val-tasks", path.name  # never select on a test family
+
+
+def test_correction_penalty_shrinks_the_learned_correction_toward_the_prior(
+    tmp_path, single_thread
+):
+    """With a prior that is already right, a penalised model keeps a smaller correction than an
+    unpenalised one trained identically."""
+    from imagejev.model.fusion import FusionModel
+    from imagejev.model.testing import tiny_text_encoder
+
+    class Embed:  # a prior that points at the right option of the toy task
+        scale_bias = (1.0, 0.0)
+
+        def embed(self, texts):
+            out = np.zeros((len(texts), 24), dtype=np.float32)
+            out[:, 0] = 1.0
+            return out
+
+    def run(l2, sub):
+        feats, recs = toy_world()
+        cfg = TrainConfig(
+            seed=0, device="cpu", steps=40, eval_every=40, ckpt_every=40, images_per_batch=6,
+            questions_per_image=3, lr_fusion=3e-3, lr_lora=3e-3, warmup_steps=5, d_model=32, n_blocks=2,
+            lora_rank=4, select_on="val", out_dir=str(tmp_path / sub), correction_l2=l2,
+        )  # fmt: skip
+        fusion = FusionModel(
+            d_text=32, d_image=24, d=32, heads=4, n_blocks=2, adapter_hidden=48, use_prior=True
+        )
+        t = Trainer(
+            cfg, tiny_text_encoder(), fusion, feats, recs[:120], {"val": recs[120:]}, prior=Embed()
+        )
+        t.run()
+        rows = list(csv.DictReader((tmp_path / sub / "train_log.csv").open()))
+        return np.mean([float(r["corr_rms"]) for r in rows[-10:]])
+
+    free, light, heavy = run(0.0, "free"), run(0.5, "light"), run(50.0, "heavy")
+    assert free > 0.0  # logged even with the penalty off
+    assert heavy < light < free  # a larger penalty leaves a smaller correction

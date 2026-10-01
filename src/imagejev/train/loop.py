@@ -25,7 +25,7 @@ import torch
 
 from ..bench.metrics import Prediction, evaluate, from_bool
 from ..data.records import QuestionRecord
-from ..model.fusion import FusionModel
+from ..model.fusion import FusionModel, correction_of
 from ..model.losses import fusion_loss
 from ..model.text import TextEncoder
 from .data import BatchBuilder
@@ -50,6 +50,10 @@ class TrainConfig:
     min_lr_frac: float = 0.1
     grad_clip: float = 1.0
     rps_weight: float = 1.0
+    # Shrinks the learned correction toward zero (i.e. toward the zero-shot prior): the loss gains
+    # correction_l2 * mean(correction^2). Unseen task families keep the prior unless the evidence
+    # for a change is strong; 0 disables it.
+    correction_l2: float = 0.0
     lora_rank: int = 16
     lora_alpha: float = 32.0
     dropout: float = 0.0
@@ -161,6 +165,7 @@ TRAIN_FIELDS = [
     "loss_score",
     "loss_bool",
     "rps",
+    "corr_rms",
     "questions",
     "seconds",
 ]
@@ -334,8 +339,15 @@ class Trainer:
             prep = self.builder.build([r for g in groups for r in g])
             logits = self.fusion(prep.batch)
         out = fusion_loss(logits.float(), prep.batch, prep.targets, rps_weight=self.cfg.rps_weight)
+        total = out.total
+        corr_rms = 0.0
+        if getattr(self.fusion, "use_prior", False):  # always logged, so runs can be compared
+            corr = correction_of(self.fusion, prep.batch, logits.float())
+            corr_rms = float(corr.detach().pow(2).mean().sqrt())
+            if self.cfg.correction_l2 > 0:
+                total = total + self.cfg.correction_l2 * corr.pow(2).mean()
         self.opt.zero_grad(set_to_none=True)
-        self.scaler.scale(out.total).backward()
+        self.scaler.scale(total).backward()
         self.scaler.unscale_(self.opt)
         torch.nn.utils.clip_grad_norm_(
             [p for g in self.opt.param_groups for p in g["params"]], self.cfg.grad_clip
@@ -350,6 +362,7 @@ class Trainer:
             "lr": self.opt.param_groups[0]["lr"],
             **{f"loss_{k}": v for k, v in out.by_type.items()},
             "rps": out.rps if out.rps is not None else "",
+            "corr_rms": corr_rms,
             "questions": len(prep.records),
             "seconds": time.perf_counter() - t0,
         }

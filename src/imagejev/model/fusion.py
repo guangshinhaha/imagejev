@@ -197,5 +197,12 @@ class FusionModel(nn.Module):
         return logits
 
 
+def correction_of(model: FusionModel, b: FusionBatch, logits: torch.Tensor) -> torch.Tensor:
+    """The learned part of the logits: ``logits - prior_gain * prior``, shape (N,)."""
+    if not model.use_prior or b.prior is None:
+        return torch.zeros_like(logits)
+    return logits - model.prior_gain[b.qtype[b.owner]] * b.prior.to(logits.dtype)
+
+
 def trainable_parameter_count(model: nn.Module) -> int:
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
