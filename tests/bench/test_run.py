@@ -175,3 +175,28 @@ def test_image_resolver_and_end_to_end_report(tmp_path):
     saved = json.loads((tmp_path / "out" / "results.json").read_text())
     assert saved["model"] == "color" and saved["splits"]["val"]["stats"]["questions"] == 60
     assert render_report(saved) == rep
+
+
+def test_subsample_is_deterministic_keeps_whole_images_and_ignores_order():
+    from imagejev.bench.run import subsample_images
+
+    recs, _ = make_records(12)
+    sub = subsample_images(recs, 10, seed=3)
+    ids = {r.image_id for r in sub}
+    assert len(ids) == 10 and all(
+        len([r for r in sub if r.image_id == i]) == 3 for i in ids
+    )  # all questions kept
+    assert subsample_images(list(reversed(recs)), 10, seed=3) == [
+        r for r in reversed(recs) if r.image_id in ids
+    ]
+    assert {r.image_id for r in subsample_images(recs, 10, seed=4)} != ids
+    assert subsample_images(recs, None) == recs and len(subsample_images(recs, 10**6)) == len(recs)
+
+
+def test_run_benchmark_applies_the_cap_and_reports_it(tmp_path):
+    recs, imgs = make_records(12)
+    write_jsonl(recs, tmp_path / "val.jsonl")
+    res = run_benchmark(model(), {"val": tmp_path / "val.jsonl"}, imgs.__getitem__, tmp_path / "o",
+                        fit_on=None, latency_images=2, max_images_per_split=7)  # fmt: skip
+    assert res["splits"]["val"]["stats"]["images"] == 7 and res["max_images_per_split"] == 7
+    assert "at most 7 images" in (tmp_path / "o" / "report.md").read_text()
