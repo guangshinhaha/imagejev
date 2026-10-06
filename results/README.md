@@ -183,6 +183,23 @@ families) is still not met. One seed, one run; the 0.001 accuracy gap and 0.02 l
 noise. Full reports: `imagejev-pilot-v2/`, `imagejev-pilot-v3/`. Configs: `configs/pilot_v2.yaml`,
 `configs/pilot_v3.yaml`.
 
+### Ablation: correction shrinkage strength (#35, partial)
+
+Same recipe as pilot v3 (bench v2, 1,000 steps, seed 0), varying only `correction_l2`. Best
+checkpoint value of the selection metric, `val-tasks` macro log loss (lower is better). These are
+selection-metric numbers from the training logs (`runs/*/select_log.csv`), **not** full benchmark
+runs; only l2 = 1.0 was benchmarked in full (above).
+
+| `correction_l2` | best `val-tasks` macro log loss | config |
+|---|---|---|
+| 1.0 (pilot v3) | 1.059 | `configs/pilot_v3.yaml` |
+| 3.0 | 1.109 | `configs/abl_l2_3.yaml` |
+| 10.0 | 1.122 | `configs/abl_l2_10.yaml` |
+
+Stronger shrinkage is worse, not better, so 1.0 is a sensible setting and the remaining gap to a
+win on unseen families is not a matter of tuning this one knob upward. Untested: l2 below 1.0 and
+other seeds.
+
 ## Caveats
 
 - One training run, one seed, 1,000 steps. No error bars; differences of a point or two in the
