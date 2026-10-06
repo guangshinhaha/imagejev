@@ -163,6 +163,26 @@ Latency p50 (one MacBook Pro, MPS): SigLIP 2 zero-shot: cold 61 ms, warm 0.7 ms;
 - **Latency** is from one MacBook Pro under heavy background load, so the absolute numbers are
   pessimistic: an unloaded run measured 5.7 ms warm for a comparable checkpoint.
 
+## Follow-up: more task families and a shrinkage penalty (pilot v2, v3)
+
+Both were trained and benchmarked on **bench v2** (bench v1 plus the eight fact-based task families
+from #86). Their `test-tasks` set is the same 2,495 questions the v1 numbers use, so the rows below
+are comparable. `test-tasks` all-domain, calibrated on `val-tasks`:
+
+| model | accuracy | log loss | ECE |
+|---|---|---|---|
+| SigLIP 2 zero-shot | 0.426 | 1.153 | 0.069 |
+| pilot v1 | 0.346 | n/a (see above) | 0.148 |
+| pilot v2 (more families) | 0.354 | 1.285 | 0.184 |
+| pilot v3 (+ `correction_l2: 1.0`) | 0.425 | 1.133 | 0.072 |
+
+More task families alone (v2) did not fix the held-out-family regression. Shrinking the learned
+correction toward the SigLIP prior (v3) brings it to parity with the baseline: accuracy is level and
+log loss is slightly lower. That is not yet a win, so criterion 2 (beat the baseline on unseen
+families) is still not met. One seed, one run; the 0.001 accuracy gap and 0.02 log-loss gap are within
+noise. Full reports: `imagejev-pilot-v2/`, `imagejev-pilot-v3/`. Configs: `configs/pilot_v2.yaml`,
+`configs/pilot_v3.yaml`.
+
 ## Caveats
 
 - One training run, one seed, 1,000 steps. No error bars; differences of a point or two in the
