@@ -192,13 +192,16 @@ runs; only l2 = 1.0 was benchmarked in full (above).
 
 | `correction_l2` | best `val-tasks` macro log loss | config |
 |---|---|---|
+| 0.3 | 1.008 | `configs/abl_l2_0p3.yaml` |
 | 1.0 (pilot v3) | 1.059 | `configs/pilot_v3.yaml` |
+| 1.0, seed 1 | 1.079 | `configs/abl_l2_1_seed1.yaml` |
 | 3.0 | 1.109 | `configs/abl_l2_3.yaml` |
 | 10.0 | 1.122 | `configs/abl_l2_10.yaml` |
 
-Stronger shrinkage is worse, not better, so 1.0 is a sensible setting and the remaining gap to a
-win on unseen families is not a matter of tuning this one knob upward. Untested: l2 below 1.0 and
-other seeds.
+Seed noise on this metric is about 0.02 (seed 0 vs seed 1 at l2 = 1.0). Stronger shrinkage (3, 10)
+is clearly worse; **weaker shrinkage (0.3) is better by about 0.05, outside the seed noise**, so 1.0
+was not the optimum. Untested: l2 below 0.3 and l2 = 0 (the v2 setting, which was worse in full
+benchmarks), and more seeds at 0.3.
 
 ## Caveats
 
