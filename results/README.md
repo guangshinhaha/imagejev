@@ -172,7 +172,7 @@ are comparable. `test-tasks` all-domain, calibrated on `val-tasks`:
 | model | accuracy | log loss | ECE |
 |---|---|---|---|
 | SigLIP 2 zero-shot | 0.426 | 1.153 | 0.069 |
-| pilot v1 | 0.346 | n/a (see above) | 0.148 |
+| pilot v1 | 0.346 | 1.251 | 0.148 |
 | pilot v2 (more families) | 0.354 | 1.285 | 0.184 |
 | pilot v3 (+ `correction_l2: 1.0`) | 0.425 | 1.133 | 0.072 |
 

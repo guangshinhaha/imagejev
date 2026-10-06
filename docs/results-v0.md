@@ -74,7 +74,7 @@ Both steps from the list below were run on bench v2 (bench v1 plus eight fact-ba
 | model | accuracy | log loss | ECE |
 |---|---|---|---|
 | SigLIP 2 zero-shot | 0.426 | 1.153 | 0.069 |
-| pilot v1 (no extra families, no shrinkage) | 0.346 | 1.593 (photo) | 0.148 |
+| pilot v1 (no extra families, no shrinkage) | 0.346 | 1.251 | 0.148 |
 | pilot v2 (more task families) | 0.354 | 1.285 | 0.184 |
 | pilot v3 (+ `correction_l2` = 1.0) | 0.425 | 1.133 | 0.072 |
 | pilot v4 (`correction_l2` = 0.3) | 0.396 | 1.226 | 0.177 |
