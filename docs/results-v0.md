@@ -58,16 +58,39 @@ by the rule in the spec (section 7.4), **no model weights are published**. What 
 - **#33** the Qwen2.5-VL-7B teacher run (the machinery is tested; the run needs a 15 GB download and
   hours of GPU time).
 - **#34** the hand-check of teacher labels (needs a person).
-- **#35 / #36** ablations and a long final run. Shrinkage experiments (`correction_l2`) were started
-  and stopped when the machine began thrashing (swap full, several unrelated processes pinning
-  every core).
+- **#35 / #36** the remaining ablations (prior on/off, LoRA, text encoder) and a long final run. The
+  `correction_l2` sweep and the extra task families are done (see the update below).
 - **#30** nothing has run on Kaggle; **#20** no T4 latency.
 - **#24** the accuracy bar for criterion 3 awaits an owner decision (a proposal is in the spec).
 - Release criterion 4 (option-shuffle invariance) is guaranteed and tested at the model level for
   choice and bool, but has not been run as a benchmark on the trained model.
 - **#38-#42** naming and publishing need the owner's decisions and credentials.
 
-## What to try next, in order
+## Update: the first two next steps were tried (pilots v2, v3, v4)
+
+Both steps from the list below were run on bench v2 (bench v1 plus eight fact-based task families,
+#86), all on the same 2,495-question `test-tasks` set; full numbers in `results/README.md`.
+
+| model | accuracy | log loss | ECE |
+|---|---|---|---|
+| SigLIP 2 zero-shot | 0.426 | 1.153 | 0.069 |
+| pilot v1 (no extra families, no shrinkage) | 0.346 | 1.593 (photo) | 0.148 |
+| pilot v2 (more task families) | 0.354 | 1.285 | 0.184 |
+| pilot v3 (+ `correction_l2` = 1.0) | 0.425 | 1.133 | 0.072 |
+| pilot v4 (`correction_l2` = 0.3) | 0.396 | 1.226 | 0.177 |
+
+- **More task families alone did not help** (v2 is no better than v1 on unseen families).
+- **Shrinking the correction helped a lot** (v3 recovers to parity with SigLIP: accuracy level, log
+  loss slightly lower), which supports the "memorised templates" diagnosis. But **parity is not a
+  win**, so criteria 1-2 are still not met. One seed per row; the selection metric has about 0.02 of
+  seed noise.
+- **`val-tasks` cannot tune the shrinkage.** l2 = 0.3 was better than 1.0 on `val-tasks` and worse
+  on `test-tasks`. With 1,165 questions and few families, `val-tasks` picked the wrong setting.
+- Net: the learned correction adds nothing on unseen families once it is constrained enough not to
+  hurt, and everything it learns helps only on seen families. That is the evidence for moving to
+  approach B rather than tuning approach A further.
+
+## What to try next, in order (original list; 1 and 2 are done, see above)
 
 1. **More task families per (domain, question type).** The diagnosed failure is too little variety.
    Generating several more score and choice families per domain from the facts already stored is
@@ -81,6 +104,7 @@ by the rule in the spec (section 7.4), **no model weights are published**. What 
 
 ## Decisions waiting on you
 
-- Whether to keep investing in approach A (steps 1-3 above) or switch to approach B.
+- Whether to keep investing in approach A or switch to approach B. **Recommendation: switch to B**
+  (open the approach B epic, #42), for the reasons in the update above.
 - The criterion-3 accuracy bar (#24).
 - The final project name (#38) and whether to publish the benchmark and this write-up now.
