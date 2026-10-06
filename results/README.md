@@ -199,9 +199,20 @@ runs; only l2 = 1.0 was benchmarked in full (above).
 | 10.0 | 1.122 | `configs/abl_l2_10.yaml` |
 
 Seed noise on this metric is about 0.02 (seed 0 vs seed 1 at l2 = 1.0). Stronger shrinkage (3, 10)
-is clearly worse; **weaker shrinkage (0.3) is better by about 0.05, outside the seed noise**, so 1.0
-was not the optimum. Untested: l2 below 0.3 and l2 = 0 (the v2 setting, which was worse in full
-benchmarks), and more seeds at 0.3.
+is worse on the selection metric. Weaker shrinkage (0.3) is better on it by about 0.05, **but that
+did not transfer**: benchmarked in full (`imagejev-pilot-v4/`), l2 = 0.3 is worse than l2 = 1.0 on
+the held-out `test-tasks`:
+
+| model | accuracy | log loss | ECE |
+|---|---|---|---|
+| SigLIP 2 zero-shot | 0.426 | 1.153 | 0.069 |
+| pilot v3 (l2 = 1.0) | 0.425 | 1.133 | 0.072 |
+| pilot v4 (l2 = 0.3) | 0.396 | 1.226 | 0.177 |
+
+Screenshots drive it (accuracy 0.335 -> 0.276, ECE 0.064 -> 0.235). So `val-tasks` (1,165 questions,
+few families) is too small and too unlike `test-tasks` to tune this knob on: selecting on it picks
+a setting that looks better there and is worse on unseen families. l2 = 1.0 remains the best
+benchmarked setting, and is only at parity with the baseline.
 
 ## Caveats
 
