@@ -183,6 +183,28 @@ families) is still not met. One seed, one run; the 0.001 accuracy gap and 0.02 l
 noise. Full reports: `imagejev-pilot-v2/`, `imagejev-pilot-v3/`. Configs: `configs/pilot_v2.yaml`,
 `configs/pilot_v3.yaml`.
 
+### Ablation: teacher slice (#33, #35, partial)
+
+Same recipe as pilot v3 (1,000 steps, `correction_l2: 1.0`, seed 0) on bench v3 (bench v2 plus the
+Qwen2.5-VL-7B teacher slice: 6,999 questions labelled, 5,187 kept in `train`), with 15% of each
+batch drawn from the teacher pool (`configs/pilot_teacher.yaml`). The bench v3 test splits differ
+slightly from v2's (2,492 vs 2,495 `test-tasks` questions), so pilot v3 was re-benchmarked on them
+for a like-for-like comparison (it reproduces the earlier numbers). `test-tasks` all-domain,
+calibrated on `val-tasks`:
+
+| model | accuracy | log loss | ECE |
+|---|---|---|---|
+| pilot v3 (no teacher slice) | 0.427 | 1.132 | 0.069 |
+| pilot v3 + teacher slice (15%) | 0.395 | 1.174 | 0.130 |
+
+The teacher slice **did not help** here: accuracy is 3 points lower and ECE roughly doubled, mostly
+on `score` questions (0.248 -> 0.202) and on screenshots (0.339 -> 0.281). The selection metric
+agrees (best `val-tasks` log loss 1.067 vs 1.059). One seed per row, and the selection metric has
+about 0.02 of seed noise, so this is "no evidence of a gain, some evidence of harm", not a settled
+effect. Not tested: other teacher fractions, or teacher labels restricted to the families that pass
+the #34 hand-check (this run used all of them, unchecked). Full reports:
+`imagejev-pilot-teacher/`, `imagejev-pilot-v3-on-v3/`.
+
 ### Ablation: correction shrinkage strength (#35, partial)
 
 Same recipe as pilot v3 (bench v2, 1,000 steps, seed 0), varying only `correction_l2`. Best
