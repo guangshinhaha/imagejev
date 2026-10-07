@@ -268,9 +268,11 @@ test-images, test-tasks, test-styles, test-external (§4.5).
 
 1. On **test-tasks**, lower log loss and ECE than SigLIP 2 zero-shot, in **every** domain.
 2. No domain falls below SigLIP 2 zero-shot accuracy on any test split.
-3. On **test-images**, accuracy in **every domain** is at least the better of SigLIP 2 zero-shot and the small-VLM baseline in that domain (recomputed on the final benchmark data; on the baseline run photo >= 0.660, document >= 0.619, screenshot >= 0.672), **and** warm p50 latency is at most one tenth of the small VLM's (<= 6.9 ms on the same machine). The bar is fixed before the release-run training starts and is not revised after (approved, #24).
+3. On **test-images**, accuracy in **every domain** is at least the better of SigLIP 2 zero-shot and the small-VLM baseline in that domain, **and** warm p50 latency is at most one tenth of the small VLM's on the same machine. Both baselines are re-run on the final benchmark data and the thresholds read off that run (#36), then fixed before the release-run training starts; the bar is never revised after. (Approved, #24.)
 
-   Why it replaced the original "within 5 points of the small VLM": the VLM is the weaker baseline overall (0.594 vs 0.623), so that bar would have let a model pass at about 0.55, below SigLIP on two of three domains. Baseline accuracy on `test-images`: photo 0.596 / 0.660, document 0.619 / 0.575, screenshot 0.672 / 0.514, all 0.623 / 0.594 (SigLIP 2 / SmolVLM-500M). Warm p50 latency: SigLIP 0.4 ms, SmolVLM 69 ms.
+   Reference numbers today (bench v1, interim): SigLIP 2 zero-shot on the full `test-images` split (6,732 questions) scores photo 0.585, document 0.595, screenshot 0.629, all 0.606, warm p50 0.7 ms. SmolVLM-500M has only been run on a 300-image subset (1,079 questions, `results/subset300/`): photo 0.584, document 0.565, screenshot 0.486, all 0.538, warm p50 109.7 ms, so a one-tenth latency bar would be about 11 ms. The subset is too small to read per-domain thresholds from; the SmolVLM run on the full split is part of #36.
+
+   Why it replaced the original "within 5 points of the small VLM": the VLM is the weaker baseline overall, so that bar would have let a model pass several points below SigLIP in two of three domains.
 4. Shuffling the option order changes the answer in fewer than 1% of cases (`choice` and `bool` questions; `score` levels are ordered, see §3).
 
 **If criterion 1 fails:** v0 is not released as a model. We publish the benchmark and the negative result, then move to approach B: a small VLM used as an encoder that reads answer logits without decoding.
