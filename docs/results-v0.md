@@ -61,7 +61,7 @@ by the rule in the spec (section 7.4), **no model weights are published**. What 
 - **#35 / #36** the remaining ablations (prior on/off, LoRA, text encoder) and a long final run. The
   `correction_l2` sweep and the extra task families are done (see the update below).
 - **#30** nothing has run on Kaggle; **#20** no T4 latency.
-- **#24** the accuracy bar for criterion 3 awaits an owner decision (a proposal is in the spec).
+- **#24** decided: criterion 3 is now the per-domain bar in spec §7.4 (every domain at least the better baseline, warm latency at most one tenth of the VLM's); thresholds are read off the final benchmark (#36).
 - Release criterion 4 (option-shuffle invariance) is guaranteed and tested at the model level for
   choice and bool, but has not been run as a benchmark on the trained model.
 - **#38-#42** naming and publishing need the owner's decisions and credentials.
@@ -106,5 +106,4 @@ Both steps from the list below were run on bench v2 (bench v1 plus eight fact-ba
 
 - Whether to keep investing in approach A or switch to approach B. **Recommendation: switch to B**
   (open the approach B epic, #42), for the reasons in the update above.
-- The criterion-3 accuracy bar (#24).
 - The final project name (#38) and whether to publish the benchmark and this write-up now.

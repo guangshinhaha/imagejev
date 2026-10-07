@@ -89,6 +89,6 @@ See [docs/data-licenses.md](docs/data-licenses.md), including the decisions that
 
 ## Known gaps
 
-No Kaggle run yet; no teacher-labelled slice yet; no ablations; one training run and one seed; a
-single accuracy bar still awaiting a decision. [docs/results-v0.md](docs/results-v0.md) lists them
+No Kaggle run yet; no teacher-labelled slice yet; no ablations; one training run and one seed; the
+accuracy bar is decided (#24) but its thresholds are only read off the final benchmark run (#36). [docs/results-v0.md](docs/results-v0.md) lists them
 with the next steps.
