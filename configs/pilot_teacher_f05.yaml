@@ -1,5 +1,5 @@
 # pilot_teacher with a 5% teacher share (#35)
-# The pilot_v3 settings on bench v3 (bench v2 plus the Qwen2.5-VL teacher slice, #33), with 15% of each
+# The pilot_v3 settings on bench v3 (bench v2 plus the Qwen2.5-VL teacher slice, #33), with 5% of each
 # batch drawn from the teacher-labelled pool. Compare with pilot_v3 for the teacher-slice ablation (#35).
 seed: 0
 device: auto

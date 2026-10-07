@@ -213,8 +213,7 @@ runs: what the model learns helps seen families and does not transfer to unseen 
 
 One seed per row. The best `val-tasks` selection metric is 1.067 vs 1.059, a gap well inside its
 ~0.02 seed noise, so it neither supports nor contradicts the `test-tasks` drop; the 0.042
-`test-tasks` log-loss gap is not covered by that noise estimate. Not tested: other teacher
-fractions, or teacher labels restricted to the families that pass the #34 hand-check (this run used
+`test-tasks` log-loss gap is not covered by that noise estimate. Not tested: teacher shares other than 5% and 15% (see below), or teacher labels restricted to the families that pass the #34 hand-check (this run used
 all of them, unchecked). Full reports: `imagejev-pilot-teacher/`, `imagejev-pilot-v3-on-v3/`.
 
 #### Teacher share: 5% vs 15% (#35, partial)
@@ -227,11 +226,13 @@ calibrated on `val-tasks`:
 |---|---|---|---|
 | `test-tasks` accuracy / log loss / ECE | 0.427 / 1.132 / 0.069 | 0.391 / 1.197 / 0.146 | 0.395 / 1.174 / 0.130 |
 | `test-images` accuracy / log loss / ECE | 0.580 / 0.826 / 0.016 | 0.681 / 0.745 / 0.084 | 0.677 / 0.752 / 0.080 |
-| best `val-tasks` selection metric (macro log loss) | 1.059 | 1.073 | 1.067 |
+| best `val-tasks` selection metric (macro log loss, from `runs/*/select_log.csv`, not committed) | 1.059 | 1.073 | 1.067 |
 
-Cutting the teacher share to a third did not remove the `test-tasks` regression (it is, if anything,
-slightly worse), and the `test-images` gain is the same. So the effect does not scale with the share
-in this range; both shares move the model the same way. Two things this run cannot separate: the
+Cutting the teacher share to a third did not remove the `test-tasks` regression: it is already
+there at 5% and does not grow at 15% (the 5% vs 15% differences, about 10 questions of accuracy and
+0.023 of log loss, are within what one seed can move), and the `test-images` gain is the same. With
+two nonzero shares and one seed each, this says the effect is not simply proportional to the share,
+and nothing more. Two things this run cannot separate: the
 effect of the teacher labels themselves from the effect of the other differences between bench v3
 and v2 `train` (59 fewer non-teacher questions), and a real teacher effect from seed noise (one seed
 per row; a seed-1 repeat of the 15% run is still training). Report: `imagejev-pilot-teacher-f05/`.
