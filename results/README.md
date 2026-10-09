@@ -232,10 +232,17 @@ Cutting the teacher share to a third did not remove the `test-tasks` regression:
 there at 5% and does not grow at 15% (the 5% vs 15% differences, about 10 questions of accuracy and
 0.023 of log loss, are within what one seed can move), and the `test-images` gain is the same. With
 two nonzero shares and one seed each, this says the effect is not simply proportional to the share,
-and nothing more. Two things this run cannot separate: the
-effect of the teacher labels themselves from the effect of the other differences between bench v3
-and v2 `train` (59 fewer non-teacher questions), and a real teacher effect from seed noise (one seed
-per row; a seed-1 repeat of the 15% run is still training). Report: `imagejev-pilot-teacher-f05/`.
+and nothing more. A seed-1 repeat of the 15% run (`configs/pilot_teacher_seed1.yaml`, `imagejev-pilot-teacher-seed1/`)
+gives `test-tasks` 0.397 / 1.208 / 0.143 and `test-images` 0.685 / 0.740 / 0.084 (best `val-tasks`
+selection metric 1.058), against 0.395 / 1.174 / 0.130 and 0.677 / 0.752 / 0.080 for seed 0. So the
+regression on unseen families reproduces across two seeds at 15% (and is present at 5%), which makes
+seed noise alone an unlikely explanation. The seed-to-seed spread of `test-tasks` log loss is about
+0.03, comparable to the 0.04 gap to the control; the control (pilot v3) has only one seed, so its own
+spread is unknown.
+
+One thing these runs cannot separate: the effect of the teacher labels themselves from the effect of
+the other differences between bench v3 and v2 `train` (59 fewer non-teacher questions). Reports:
+`imagejev-pilot-teacher-f05/`, `imagejev-pilot-teacher-seed1/`.
 
 ### Ablation: correction shrinkage strength (#35, partial)
 
