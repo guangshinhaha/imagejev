@@ -211,9 +211,10 @@ gain about 10 points of accuracy and 0.07-0.08 of log loss, and the external set
 points), but ECE is worse on the in-distribution splits too. That is the same pattern as the other
 runs: what the model learns helps seen families and does not transfer to unseen ones.
 
-One seed per row. The best `val-tasks` selection metric is 1.067 vs 1.059, a gap well inside its
-~0.02 seed noise, so it neither supports nor contradicts the `test-tasks` drop; the 0.042
-`test-tasks` log-loss gap is not covered by that noise estimate. Not tested: teacher shares other than 5% and 15% (see below), or teacher labels restricted to the families that pass the #34 hand-check (this run used
+One seed per row here (the 15% run is repeated with a second seed below). The best `val-tasks`
+selection metric is 1.067 vs 1.059, a gap well inside its ~0.02 seed noise, so it neither supports
+nor contradicts the `test-tasks` drop; the 0.042 `test-tasks` log-loss gap is not covered by that
+noise estimate (the observed seed-to-seed spread of `test-tasks` log loss is 0.034, see below). Not tested: teacher shares other than 5% and 15% (see below), or teacher labels restricted to the families that pass the #34 hand-check (this run used
 all of them, unchecked). Full reports: `imagejev-pilot-teacher/`, `imagejev-pilot-v3-on-v3/`.
 
 #### Teacher share: 5% vs 15% (#35, partial)
@@ -231,14 +232,18 @@ calibrated on `val-tasks`:
 Cutting the teacher share to a third did not remove the `test-tasks` regression: it is already
 there at 5% and does not grow at 15% (the 5% vs 15% differences, about 10 questions of accuracy and
 0.023 of log loss, are within what one seed can move), and the `test-images` gain is the same. With
-two nonzero shares and one seed each, this says the effect is not simply proportional to the share,
-and nothing more. A seed-1 repeat of the 15% run (`configs/pilot_teacher_seed1.yaml`, `imagejev-pilot-teacher-seed1/`)
-gives `test-tasks` 0.397 / 1.208 / 0.143 and `test-images` 0.685 / 0.740 / 0.084 (best `val-tasks`
-selection metric 1.058), against 0.395 / 1.174 / 0.130 and 0.677 / 0.752 / 0.080 for seed 0. So the
-regression on unseen families reproduces across two seeds at 15% (and is present at 5%), which makes
-seed noise alone an unlikely explanation. The seed-to-seed spread of `test-tasks` log loss is about
-0.03, comparable to the 0.04 gap to the control; the control (pilot v3) has only one seed, so its own
-spread is unknown.
+two nonzero shares, this says the effect is not simply proportional to the share, and nothing more.
+
+A seed-1 repeat of the 15% run (`configs/pilot_teacher_seed1.yaml`,
+`imagejev-pilot-teacher-seed1/`) gives `test-tasks` 0.397 / 1.208 / 0.143 and `test-images`
+0.685 / 0.740 / 0.084, against 0.395 / 1.174 / 0.130 and 0.677 / 0.752 / 0.080 for seed 0. The
+accuracy (0.397 vs 0.395) and ECE (0.143 vs 0.130) agree closely across the two seeds and both sit
+well away from the control (0.427 and 0.069), which is the strongest evidence that the drop is real.
+Log loss is noisier: the two seeds differ by 0.034, against gaps to the control of 0.042 and 0.076.
+The control (pilot v3) has only one seed, so its own spread is unknown; a second control seed is
+needed to rule noise out. The selection metric (best `val-tasks` macro log loss, from the untracked
+training log) does not show the regression: 1.058 for seed 1, against 1.067 for seed 0 and 1.059 for
+the control. That is consistent with the earlier finding that `val-tasks` does not predict `test-tasks`.
 
 One thing these runs cannot separate: the effect of the teacher labels themselves from the effect of
 the other differences between bench v3 and v2 `train` (59 fewer non-teacher questions). Reports:
