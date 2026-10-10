@@ -83,7 +83,9 @@ Both steps from the list below were run on bench v2 (bench v1 plus eight fact-ba
 - **Shrinking the correction helped a lot** (v3 recovers to parity with SigLIP: accuracy level, log
   loss slightly lower), which supports the "memorised templates" diagnosis. But **parity is not a
   win**, so criteria 1-2 are still not met. One seed per row; the selection metric has about 0.02 of
-  seed noise.
+  seed noise. **Update:** a second seed of v3 scores 0.398 / 1.183 / 0.135 on `test-tasks`, so v3 is
+  below SigLIP across two seeds, not at parity, and seed-to-seed variation (about 3 points) is as large
+  as the v3 vs v4 and teacher-slice differences reported elsewhere.
 - **`val-tasks` cannot tune the shrinkage.** l2 = 0.3 was better than 1.0 on `val-tasks` and worse
   on `test-tasks`. With 1,165 questions and few families, `val-tasks` picked the wrong setting.
 - Net: the learned correction adds nothing on unseen families once it is constrained enough not to
