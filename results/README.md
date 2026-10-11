@@ -181,8 +181,9 @@ correction toward the SigLIP prior (v3) brings it to parity with the baseline: a
 log loss is slightly lower. That is not yet a win, so criterion 2 (beat the baseline on unseen
 families) is still not met. One seed, one run; the 0.001 accuracy gap and 0.02 log-loss gap are within
 noise. **Correction:** a second seed of the same recipe (`configs/abl_l2_1_seed1.yaml`, benchmarked
-below) scores 0.398 / 1.183 / 0.135, so the parity above was a favourable seed; across two seeds pilot
-v3 is a few points *below* SigLIP on unseen families. Full reports: `imagejev-pilot-v2/`, `imagejev-pilot-v3/`. Configs: `configs/pilot_v2.yaml`,
+below) scores 0.398 / 1.183 / 0.135, so the parity was not reproduced: seed 1 is about 3 points of
+accuracy below SigLIP (0.426) with ECE 0.135 vs 0.069, and the two-seed mean (0.412 / 1.158 / 0.102)
+is slightly below on accuracy and worse on ECE. (The runs use test sets of 2,492 and 2,495 questions.) Full reports: `imagejev-pilot-v2/`, `imagejev-pilot-v3/`. Configs: `configs/pilot_v2.yaml`,
 `configs/pilot_v3.yaml`.
 
 ### Ablation: teacher slice (#33, #35, partial)
@@ -203,19 +204,23 @@ the bench v3 test splits (2,492 `test-tasks` questions, vs 2,495 on v2). All-dom
 | 15% teacher, seed 0 | 0.395 / 1.174 / 0.130 | 0.677 / 0.752 / 0.080 |
 | 15% teacher, seed 1 | 0.397 / 1.208 / 0.143 | 0.685 / 0.740 / 0.084 |
 
-**The teacher slice has no measurable effect in these runs.** The no-teacher control with seed 1
-lands inside the range of the four teacher runs on every column. What looked like a teacher effect in
-the first write-up (#95, #97, #98: "worse on unseen families, about 10 points better on seen ones")
-was the first control seed being an outlier: seed 0 scores `test-tasks` 0.427 and `test-images`
-0.580, seed 1 scores 0.398 and 0.688. Seed-to-seed variation of one recipe is about 3 points of
-accuracy on `test-tasks` and about 11 on `test-images`, larger than every difference between the
-teacher and no-teacher rows. Two seeds per arm cannot detect a small effect either way; they show only
-that the large effects reported earlier were not due to the teacher slice.
+**No teacher-slice effect distinguishable from seed variation, with two seeds per arm.** The
+no-teacher control with seed 1 is inside the range of the three teacher runs on log loss (both
+splits) and `test-tasks` ECE, and marginally outside it on accuracy (`test-tasks` 0.398 vs the
+teacher maximum 0.397; `test-images` 0.688 vs 0.685) and `test-images` ECE (0.090 vs 0.084). What
+looked like a teacher effect in the first write-up (#95, #97, #98: "worse on unseen families, about
+10 points better on seen ones") was the first control seed being an outlier: seed 0 scores
+`test-tasks` 0.427 and `test-images` 0.580, seed 1 scores 0.398 and 0.688. The control recipe varies by
+about 3 points of accuracy on `test-tasks` (comparable to the up-to-3.6-point gap between control
+seed 0 and the teacher runs) and about 11 on `test-images` (larger than any teacher vs control gap).
+The teacher recipe's own two seeds differ by only 0.2 and 0.8 points, so the seed spread rests on one
+control pair. Two seeds per arm cannot detect a small effect either way; they show only that the
+large effects reported earlier were not due to the teacher slice.
 
 Caveats: 5% and 15% shares only; the teacher labels were not hand-checked (#34); the controls and
 the teacher runs differ in the other ways bench v3 differs from v2 `train` (59 fewer non-teacher
 questions). The best `val-tasks` selection metric (macro log loss, from the untracked
-`runs/*/select_log.csv`) is 1.059 and 1.080 for the controls, 1.073 for 5% and 1.067 / 1.058 for 15%,
+`runs/*/select_log.csv`) is 1.059 and 1.079 for the controls, 1.072 for 5% and 1.067 / 1.058 for 15%,
 i.e. no separation either. Reports: `imagejev-pilot-teacher/`, `imagejev-pilot-teacher-f05/`,
 `imagejev-pilot-teacher-seed1/`, `imagejev-pilot-v3-on-v3/`, `imagejev-pilot-v3-seed1-on-v3/`.
 
@@ -250,15 +255,18 @@ few families) is too small and too unlike `test-tasks` to tune this knob on: sel
 a setting that looks better there and is worse on unseen families. l2 = 1.0 remains the best
 benchmarked setting, and is only at parity with the baseline. **Correction:** a second seed of
 l2 = 1.0 scores `test-tasks` 0.398 / 1.183 / 0.135, the same as l2 = 0.3 (0.396 / 1.226 / 0.177) on
-accuracy, so the l2 = 0.3 vs 1.0 difference in this table is mostly seed variation, not a real effect
-of the setting. Shrinking at all (v1 -> v3, 0.346 -> 0.398-0.425) still helps.
+accuracy, so the l2 = 0.3 vs 1.0 difference in this table is not distinguishable from seed variation (log loss
+and ECE differ by 0.043 and 0.042 between them, against 0.051 and 0.066 between the two l2 = 1.0
+seeds; l2 = 0.3 has one seed, and the selection metric still prefers it). Shrinking at all (v1 -> v3,
+0.346 -> 0.398-0.425; v1 is one seed) still looks like it helps, by more than the seed spread.
 
 ## Caveats
 
-- One training run, one seed, 1,000 steps. No error bars; differences of a point or two in the
+- Short pilot runs (1,000 steps), one or two seeds per setting. No error bars; differences of a point or two in the
   small domains are not significant.
 - `test-tasks` is small for some families (`comp.photo.more_of` has 41 questions).
-- No Kaggle T4 latency yet (#20), no teacher-labelled slice yet (#33), no ablations (#35).
+- No Kaggle T4 latency yet (#20), the teacher slice (#33) and a few ablations (#35) have been run at two seeds or fewer; none of the
+  differences reported is clearly outside seed variation.
 - The pilot's checkpoint was selected on `val-tasks`; calibration was also fitted there. The test
   splits were not used for either.
 
