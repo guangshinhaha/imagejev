@@ -8,6 +8,7 @@ accepts that directory.
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -113,7 +114,8 @@ def export_model(
             "use_prior": "prior_gain" in ck["fusion"],
         },
         "trained_steps": int(ck["step"]),
-        "selection_score": float(ck["best"]),
+        # inf before the first selection eval (possible for a fixed-step snapshot); not valid JSON.
+        "selection_score": float(ck["best"]) if math.isfinite(float(ck["best"])) else None,
         **(extra or {}),
     }
     (out / "config.json").write_text(json.dumps(config, indent=2) + "\n")

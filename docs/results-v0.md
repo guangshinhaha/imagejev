@@ -86,9 +86,12 @@ Both steps from the list below were run on bench v2 (bench v1 plus eight fact-ba
   seed noise. **Update:** a second seed of v3 scores 0.398 / 1.183 / 0.135 on `test-tasks`, so the
   parity was not reproduced (seed 1 is about 3 points of accuracy below SigLIP, ECE 0.135 vs 0.069).
   Across eight runs the variation lines up with the checkpoint step the loop kept (the two early ones
-  score higher on unseen families and lower on seen; the six late ones the reverse; observational, not
-  tested within a run), and is as large as the v3 vs v4 and teacher-slice
-  differences reported elsewhere (`results/README.md`, teacher-slice section).
+  score higher on unseen families and lower on seen; the six late ones the reverse), and is as large as the v3 vs v4 and teacher-slice
+  differences reported elsewhere (`results/README.md`, teacher-slice section). A within-run test
+  (snapshots every 125 steps, three seeds) shows log loss and ECE rising steadily with training
+  (ECE 0.082 to 0.143) and accuracy falling about 2.5 points after step 125 and then flat; even the
+  best early point is indistinguishable from SigLIP (0.418 vs 0.426), and same-seed runs differ
+  by more than the trend (0.382 vs 0.442 at step 375).
 - **`val-tasks` cannot tune the shrinkage.** l2 = 0.3 was better than 1.0 on `val-tasks` and worse
   on `test-tasks`. With 1,165 questions and few families, `val-tasks` picked the wrong setting.
 - Net: the learned correction adds nothing on unseen families once it is constrained enough not to

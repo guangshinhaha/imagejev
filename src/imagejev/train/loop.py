@@ -40,6 +40,10 @@ class TrainConfig:
     steps: int = 3000
     eval_every: int = 250
     ckpt_every: int = 250
+    # Every this many steps, also keep a weights-only snapshot (snap-<step>.pt, about a third of the
+    # size of last.pt, loadable by export_model). 0 = off. Lets a run be evaluated at fixed steps
+    # instead of only at the checkpoint that happened to score best on the selection split.
+    snapshot_every: int = 0
     images_per_batch: int = 16
     questions_per_image: int = 4
     teacher_fraction: float = 0.15
@@ -258,6 +262,22 @@ class Trainer:
         _atomic_save(self.state(), path)
         return path
 
+    def snapshot(self) -> Path:
+        path = self.out / f"snap-{self.step:05d}.pt"
+        _atomic_save(
+            {
+                "step": self.step,
+                # The best selection score seen so far, not this snapshot's own score (inf before
+                # the first selection eval).
+                "best": self.best,
+                "fusion": self.fusion.state_dict(),
+                "lora": self.text.lora_state_dict(),
+                "config": dataclasses.asdict(self.cfg),
+            },
+            path,
+        )
+        return path
+
     def load(self, path: str | Path) -> None:
         ck = torch.load(path, map_location="cpu", weights_only=False)
         self.fusion.load_state_dict(ck["fusion"])
@@ -390,6 +410,10 @@ class Trainer:
                 on_step(self.step)
             if self.step % self.cfg.eval_every == 0 or self.step == self.cfg.steps:
                 self.run_eval()
+            # The snapshot comes first: if the run is killed between the two writes, resuming from
+            # last.pt (an earlier step) replays this step and writes the snapshot again.
+            if self.cfg.snapshot_every and self.step % self.cfg.snapshot_every == 0:
+                self.snapshot()
             if self.step % self.cfg.ckpt_every == 0 or self.step == self.cfg.steps:
                 self.save()
             if deadline is not None and time.monotonic() >= deadline and self.step < self.cfg.steps:
