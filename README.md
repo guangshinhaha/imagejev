@@ -8,9 +8,10 @@ It is the image counterpart of [Laya](https://github.com/NandhaKishorM/laya) (te
 TypeSafe's Jev (hosted, no image input yet).
 
 > **Status: research code with an honest negative result.** The library, the benchmark and the
-> training pipeline work and are tested. The one trained model so far beats the SigLIP 2 zero-shot
-> baseline on questions like the ones it trained on, but **not on task families it has never seen**,
-> which is the point of the project. By the rule written into the spec, no weights are published.
+> training pipeline work and are tested. The trained models so far (approach A, a fusion head on
+> SigLIP features) beat the SigLIP 2 zero-shot baseline on questions like the ones they trained on,
+> but **not on task families they have never seen**, which is the point of the project. Work has moved
+> to approach B, a small VLM as the encoder (#102). By the rule written into the spec, no weights are published.
 > Read [docs/results-v0.md](docs/results-v0.md) before relying on any of it.
 >
 > "imagejev" is a **working name**; it must change before any release because "Jev" is TypeSafe's
@@ -91,5 +92,5 @@ See [docs/data-licenses.md](docs/data-licenses.md), including the decisions that
 
 No Kaggle run yet; the teacher slice and a few ablations were run but with two or three seeds each, so
 most differences are within the (large) run-to-run variation; the
-accuracy bar is decided (#24) but its thresholds are only read off the final benchmark run (#36). [docs/results-v0.md](docs/results-v0.md) lists them
+accuracy bar is decided (#24) but its thresholds are only read off the full-split baseline runs (#103). [docs/results-v0.md](docs/results-v0.md) lists them
 with the next steps.
