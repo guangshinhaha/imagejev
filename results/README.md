@@ -243,35 +243,52 @@ hand-checked (#34); six of the eight runs are on bench v3 and two controls on v2
 
 Three no-teacher controls on bench v3 (`configs/pilot_trace_s{0,1,2}.yaml`, seeds 0-2) were trained
 with `snapshot_every: 125`, which keeps a weights-only snapshot every 125 steps, and with `test-tasks`
-logged (never used for selection) at every evaluation. Each snapshot was then benchmarked the standard
-way (calibrated on `val-tasks`). `test-tasks`, all-domain, accuracy / log loss / ECE:
+logged (never used for selection) at every evaluation. All 24 snapshots were then benchmarked the
+standard way (calibrated on `val-tasks`; reports in `imagejev-trace_s<seed>_<step>/`). `test-tasks`,
+all-domain, mean over the three seeds with the range in brackets:
 
-| step | seed 0 | seed 1 | seed 2 | mean |
-|---|---|---|---|---|
-| 125 | 0.428 / 1.137 / 0.071 | 0.414 / 1.150 / 0.083 | 0.412 / 1.155 / 0.092 | 0.418 / 1.147 / 0.082 |
-| 250 | 0.411 / 1.151 / 0.103 | 0.399 / 1.163 / 0.109 | 0.391 / 1.169 / 0.128 | 0.400 / 1.161 / 0.113 |
-| 1000 | 0.396 / 1.190 / 0.140 | 0.393 / 1.179 / 0.137 | 0.391 / 1.197 / 0.152 | 0.393 / 1.189 / 0.143 |
-| SigLIP 2 zero-shot | | | | 0.426 / 1.153 / 0.069 |
+| step | accuracy | log loss | ECE |
+|---|---|---|---|
+| 125 | 0.418 (0.412-0.428) | 1.147 (1.137-1.155) | 0.082 (0.071-0.092) |
+| 250 | 0.400 (0.391-0.411) | 1.161 (1.151-1.169) | 0.113 (0.103-0.128) |
+| 375 | 0.395 (0.382-0.410) | 1.172 (1.162-1.181) | 0.117 (0.096-0.130) |
+| 500 | 0.404 (0.392-0.413) | 1.172 (1.158-1.184) | 0.111 (0.099-0.128) |
+| 625 | 0.405 (0.401-0.408) | 1.171 (1.166-1.175) | 0.121 (0.116-0.128) |
+| 750 | 0.394 (0.390-0.396) | 1.190 (1.183-1.194) | 0.141 (0.140-0.143) |
+| 875 | 0.396 (0.392-0.403) | 1.186 (1.182-1.194) | 0.141 (0.133-0.148) |
+| 1000 | 0.393 (0.391-0.396) | 1.189 (1.179-1.197) | 0.143 (0.137-0.152) |
+| SigLIP 2 zero-shot | 0.426 | 1.153 | 0.069 |
 
-(The raw, uncalibrated per-evaluation curves in `runs/pilot_trace_s*/eval_log.csv`, not committed, show
-the same shape. Reports: `imagejev-trace_s<seed>_<step>/`.)
+(SigLIP's row uses the 2,495-question v2 `test-tasks`; the traces use 2,492.)
 
-**Within a run, the unseen-family score gets worse as training goes on, on every metric, in all three
-seeds.** From step 125 to step 1000, accuracy falls by 2.1-3.2 points (mean 2.5), log loss rises by
-0.03-0.05 and ECE rises 1.7-2 times. This is consistent with the between-run pattern above (runs that
-kept an early checkpoint scored higher on `test-tasks`). It also fits the earlier finding that the
-learned correction adds nothing on unseen families: the longer it trains, the further it moves the
-model from the SigLIP prior in a direction that does not transfer.
+**Log loss and ECE get worse as training goes on, in all three seeds; accuracy drops after step 125
+and then stays roughly flat.** From step 125 to step 1000 the mean log loss rises by 0.04 (1.147 to
+1.189) and ECE by 0.06 (0.082 to 0.143, a factor of 1.7); both rise fairly steadily, with jitter of
+about 0.01. Accuracy is highest at step 125 in all three seeds (0.428, 0.414, 0.412; seed 1 is tied
+with step 500), then sits between 0.38 and 0.41 with no clear trend, ending at 0.391-0.396. So the
+mean fall in accuracy (2.5 points) is real in sign (3 of 3 seeds) but small next to the jitter between
+neighbouring steps (up to 3 points within one seed). Raw, uncalibrated curves from the training logs
+(`runs/pilot_trace_s*/eval_log.csv`, not committed) show the same shape.
 
-**It never beats the baseline.** The best point, step 125, is about level with SigLIP: accuracy 0.418 vs
-0.426 (below), log loss 1.147 vs 1.153 (slightly better), ECE 0.082 vs 0.069 (worse). So stopping early
-recovers parity at best, not the win that release criteria 1-2 require, and costs seen-family accuracy
-(`test-images` accuracy was about 0.59 for the early-kept runs against 0.68-0.69 for the late ones).
-Limits: three seeds, one recipe (`correction_l2: 1.0`, no teacher slice); only steps 125, 250 and 1000
-were benchmarked; and with the cosine schedule "step 125" is a model that has barely left warm-up,
-not a short run. The traces' kept step differs from the earlier control runs with the same seeds
-(for example seed 2 kept step 875 here and step 375 before), because changing the evaluation sets
-changes the run, so a seed is not one fixed trajectory.
+**Runs with the same seed and config do not reproduce each other, and that spread is bigger than the
+trend.** The earlier control with seed 2 (`imagejev-pilot-ctl-v3-s2/`) kept its step-375 checkpoint
+and scored 0.442 / 1.145 / 0.061; the trace run with the same seed and config scores 0.382 / 1.172 /
+0.130 at step 375. The cause is not established (non-deterministic GPU kernels are a candidate; the
+trace configs also log more eval sets, which should not change training but was not verified).
+Across the runs at steps 250-375 the accuracy spans 0.382 to 0.442. That spread, about 6 points,
+exceeds the 2.5-point trend, which is why the earlier "early-kept checkpoints score higher" pattern
+(0.427 and 0.442) overstated it: those two were favourable draws as well as early ones.
+
+**Nothing here clearly beats the baseline.** The best point, step 125, is indistinguishable from
+SigLIP: mean accuracy 0.418 vs 0.426, log loss 1.147 vs 1.153, ECE 0.082 vs 0.069. One seed at step 125
+is nominally above SigLIP on accuracy and log loss (0.428 / 1.137), by margins smaller than the
+spread. An early stop therefore gives parity at best, not the win that release criteria 1-2
+require, and it costs seen-family accuracy (`test-images` accuracy was about 0.59 for the early-kept
+runs against 0.68-0.69 for the late ones). One way to read the trend is that the learned correction
+moves the model away from the SigLIP prior in a direction that does not transfer to unseen families;
+that is a hypothesis, not tested here (the correction's size, `corr_rms`, is logged but not examined).
+Limits: three seeds, one recipe (`correction_l2: 1.0`, no teacher slice); step 125 is early in a
+1,000-step cosine schedule (the learning rate is already near its peak, warm-up is 50 steps).
 
 ### Ablation: correction shrinkage strength (#35, partial)
 
