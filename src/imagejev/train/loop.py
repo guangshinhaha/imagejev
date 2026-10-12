@@ -267,7 +267,9 @@ class Trainer:
         _atomic_save(
             {
                 "step": self.step,
-                "best": self.best,  # best selection score so far (export_model records it)
+                # The best selection score seen so far, not this snapshot's own score (inf before
+                # the first selection eval).
+                "best": self.best,
                 "fusion": self.fusion.state_dict(),
                 "lora": self.text.lora_state_dict(),
                 "config": dataclasses.asdict(self.cfg),
@@ -408,10 +410,12 @@ class Trainer:
                 on_step(self.step)
             if self.step % self.cfg.eval_every == 0 or self.step == self.cfg.steps:
                 self.run_eval()
-            if self.step % self.cfg.ckpt_every == 0 or self.step == self.cfg.steps:
-                self.save()
+            # The snapshot comes first: if the run is killed between the two writes, resuming from
+            # last.pt (an earlier step) replays this step and writes the snapshot again.
             if self.cfg.snapshot_every and self.step % self.cfg.snapshot_every == 0:
                 self.snapshot()
+            if self.step % self.cfg.ckpt_every == 0 or self.step == self.cfg.steps:
+                self.save()
             if deadline is not None and time.monotonic() >= deadline and self.step < self.cfg.steps:
                 self.save()
                 return False

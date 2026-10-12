@@ -293,16 +293,39 @@ def test_correction_penalty_shrinks_the_learned_correction_toward_the_prior(
 
 
 def test_snapshots_are_written_at_the_requested_interval_and_are_exportable(tmp_path):
+    import json
+
     from imagejev.backends.trained import export_model
 
     tr = make_trainer(tmp_path / "run", steps=40, snapshot_every=20)
     tr.run()
     snaps = sorted(p.name for p in (tmp_path / "run").glob("snap-*.pt"))
     assert snaps == ["snap-00020.pt", "snap-00040.pt"]
-    last, snap = tmp_path / "run" / "last.pt", tmp_path / "run" / "snap-00040.pt"
+    last, snap = tmp_path / "run" / "last.pt", tmp_path / "run" / "snap-00020.pt"
     assert snap.stat().st_size < last.stat().st_size  # no optimizer state
+    ck = torch.load(snap, map_location="cpu", weights_only=False)
+    assert set(ck) == {"step", "best", "fusion", "lora", "config"} and ck["step"] == 20
     out = export_model(snap, tmp_path / "model")
-    assert (out / "config.json").exists()
+    assert json.loads((out / "config.json").read_text())["trained_steps"] == 20
+
+
+def test_an_interval_that_does_not_divide_the_steps_writes_only_the_multiples(tmp_path):
+    tr = make_trainer(tmp_path, steps=40, snapshot_every=15)
+    tr.run()
+    assert sorted(p.name for p in tmp_path.glob("snap-*.pt")) == ["snap-00015.pt", "snap-00030.pt"]
+
+
+def test_a_snapshot_before_the_first_selection_eval_exports_valid_json(tmp_path):
+    import json
+
+    from imagejev.backends.trained import export_model
+
+    tr = make_trainer(tmp_path / "run", steps=40, snapshot_every=5)  # eval_every is 20
+    tr.run()
+    snap = tmp_path / "run" / "snap-00005.pt"
+    assert torch.load(snap, map_location="cpu", weights_only=False)["best"] == float("inf")
+    cfg = json.loads((export_model(snap, tmp_path / "model") / "config.json").read_text())
+    assert cfg["selection_score"] is None  # strict JSON: no Infinity token
 
 
 def test_no_snapshots_by_default(tmp_path):
