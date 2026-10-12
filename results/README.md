@@ -181,48 +181,56 @@ correction toward the SigLIP prior (v3) brings it to parity with the baseline: a
 log loss is slightly lower. That is not yet a win, so criterion 2 (beat the baseline on unseen
 families) is still not met. One seed, one run; the 0.001 accuracy gap and 0.02 log-loss gap are within
 noise. **Correction:** a second seed of the same recipe (`configs/abl_l2_1_seed1.yaml`, benchmarked
-below) scores 0.398 / 1.183 / 0.135, so the parity was not reproduced: seed 1 is about 3 points of
-accuracy below SigLIP (0.426) with ECE 0.135 vs 0.069, and the two-seed mean (0.412 / 1.158 / 0.102)
-is slightly below on accuracy and worse on ECE. (The runs use test sets of 2,492 and 2,495 questions.) Full reports: `imagejev-pilot-v2/`, `imagejev-pilot-v3/`. Configs: `configs/pilot_v2.yaml`,
+below) scores 0.398 / 1.183 / 0.135, so the parity was not reproduced on that seed: it is about 3 points of
+accuracy below SigLIP (0.426) with ECE 0.135 vs 0.069. The difference comes from which checkpoint the
+loop kept (step 250 for the parity run, 875 for this one); see the teacher-slice section below. (The runs use test sets of 2,492 and 2,495 questions.) Full reports: `imagejev-pilot-v2/`, `imagejev-pilot-v3/`. Configs: `configs/pilot_v2.yaml`,
 `configs/pilot_v3.yaml`.
 
-### Ablation: teacher slice (#33, #35, partial)
+### Ablation: teacher slice, and what actually drives the run-to-run variation (#33, #35, partial)
 
-Pilot v3's recipe (1,000 steps, `correction_l2: 1.0`) trained on bench v3 (bench v2 plus the
-Qwen2.5-VL-7B teacher slice: 6,999 questions labelled, 5,187 kept in `train`), with 5% or 15% of each
-batch drawn from the teacher pool (`configs/pilot_teacher_f05.yaml`, `configs/pilot_teacher.yaml`,
-`configs/pilot_teacher_seed1.yaml`). The controls are pilot v3 checkpoints trained on bench v2 (so
-their `train` set differs from v3's by more than the teacher records), seeds 0 and 1, re-evaluated on
-the bench v3 test splits (2,492 `test-tasks` questions, vs 2,495 on v2). All-domain, calibrated on
-`val-tasks`; accuracy / log loss / ECE:
+Pilot v3's recipe (1,000 steps, `correction_l2: 1.0`), with and without the Qwen2.5-VL-7B teacher slice
+(6,999 questions labelled, 5,187 kept in bench v3 `train`; 5% or 15% of each batch). Eight runs, all
+benchmarked on the bench v3 test splits and calibrated on `val-tasks`; accuracy / log loss / ECE.
+"Best step" is the checkpoint the training loop kept (lowest `val-tasks` macro log loss, from the
+untracked `runs/*/select_log.csv`). The first two controls were trained on bench v2 (so their `train`
+set differs from v3's by more than the teacher records); the rest on bench v3.
 
-| run | `test-tasks` (unseen families) | `test-images` |
-|---|---|---|
-| no teacher, seed 0 | 0.427 / 1.132 / 0.069 | 0.580 / 0.826 / 0.016 |
-| no teacher, seed 1 | 0.398 / 1.183 / 0.135 | 0.688 / 0.744 / 0.090 |
-| 5% teacher, seed 0 | 0.391 / 1.197 / 0.146 | 0.681 / 0.745 / 0.084 |
-| 15% teacher, seed 0 | 0.395 / 1.174 / 0.130 | 0.677 / 0.752 / 0.080 |
-| 15% teacher, seed 1 | 0.397 / 1.208 / 0.143 | 0.685 / 0.740 / 0.084 |
+| run | best step | `test-tasks` (unseen families) | `test-images` |
+|---|---|---|---|
+| control, seed 0 (pilot v3, bench v2) | 250 | 0.427 / 1.132 / 0.069 | 0.580 / 0.826 / 0.016 |
+| control, seed 2 (bench v3) | 375 | 0.442 / 1.145 / 0.061 | 0.592 / 0.822 / 0.021 |
+| control, seed 0 (bench v3) | 750 | 0.397 / 1.188 / 0.138 | 0.677 / 0.746 / 0.076 |
+| control, seed 1 (bench v2) | 875 | 0.398 / 1.183 / 0.135 | 0.688 / 0.744 / 0.090 |
+| control, seed 1 (bench v3) | 1000 | 0.403 / 1.169 / 0.118 | 0.693 / 0.747 / 0.100 |
+| 15% teacher, seed 0 | 750 | 0.395 / 1.174 / 0.130 | 0.677 / 0.752 / 0.080 |
+| 5% teacher, seed 0 | 875 | 0.391 / 1.197 / 0.146 | 0.681 / 0.745 / 0.084 |
+| 15% teacher, seed 1 | 875 | 0.397 / 1.208 / 0.143 | 0.685 / 0.740 / 0.084 |
 
-**No teacher-slice effect distinguishable from seed variation, with two seeds per arm.** The
-no-teacher control with seed 1 is inside the range of the three teacher runs on log loss (both
-splits) and `test-tasks` ECE, and marginally outside it on accuracy (`test-tasks` 0.398 vs the
-teacher maximum 0.397; `test-images` 0.688 vs 0.685) and `test-images` ECE (0.090 vs 0.084). What
-looked like a teacher effect in the first write-up (#95, #97, #98: "worse on unseen families, about
-10 points better on seen ones") was the first control seed being an outlier: seed 0 scores
-`test-tasks` 0.427 and `test-images` 0.580, seed 1 scores 0.398 and 0.688. The control recipe varies by
-about 3 points of accuracy on `test-tasks` (comparable to the up-to-3.6-point gap between control
-seed 0 and the teacher runs) and about 11 on `test-images` (larger than any teacher vs control gap).
-The teacher recipe's own two seeds differ by only 0.2 and 0.8 points, so the seed spread rests on one
-control pair. Two seeds per arm cannot detect a small effect either way; they show only that the
-large effects reported earlier were not due to the teacher slice.
+For reference, SigLIP 2 zero-shot scores 0.426 / 1.153 / 0.069 on `test-tasks` (2,495 questions).
 
-Caveats: 5% and 15% shares only; the teacher labels were not hand-checked (#34); the controls and
-the teacher runs differ in the other ways bench v3 differs from v2 `train` (59 fewer non-teacher
-questions). The best `val-tasks` selection metric (macro log loss, from the untracked
-`runs/*/select_log.csv`) is 1.059 and 1.079 for the controls, 1.072 for 5% and 1.067 / 1.058 for 15%,
-i.e. no separation either. Reports: `imagejev-pilot-teacher/`, `imagejev-pilot-teacher-f05/`,
-`imagejev-pilot-teacher-seed1/`, `imagejev-pilot-v3-on-v3/`, `imagejev-pilot-v3-seed1-on-v3/`.
+**The checkpoint step, not the teacher slice, separates the runs.** The two runs whose best
+checkpoint came early (step 250, 375) have the highest `test-tasks` accuracy (0.427, 0.442; at or
+slightly above SigLIP, with SigLIP-level calibration) and the lowest `test-images` accuracy (about
+0.59). The six runs whose best checkpoint came at step 750 or later all sit in a tight cluster at
+`test-tasks` 0.391-0.403 and `test-images` 0.677-0.693. The longer the model trains, the better it does
+on seen families and the worse on unseen ones, with ECE rising on both. All three teacher runs fall in
+the late cluster, as do three of the five controls. Inside that cluster, the three teacher runs vs the
+three late controls differ by about half a point of accuracy (0.394 vs 0.399 mean), 0.013 of log loss
+(1.193 vs 1.180) and 0.01 of ECE (0.140 vs 0.130), well inside the spread, with three runs per side.
+So **no teacher-slice effect is distinguishable from the noise here**, and the earlier write-up
+(#95, #97, #98: "teacher slice hurts unseen families") was an artefact of comparing against one
+early-checkpoint control.
+
+Caveats: this is an observation across eight runs, not a controlled experiment (best step was not
+varied on purpose, and `val-tasks`, with 1,165 questions, selects it noisily); only 5% and 15% teacher
+shares; teacher labels not hand-checked (#34); five of the eight runs are on bench v3 and two controls
+on v2. Reports: `imagejev-pilot-v3-on-v3/`, `imagejev-pilot-v3-seed1-on-v3/`, `imagejev-pilot-ctl-v3-s0/`,
+`-s1/`, `-s2/`, `imagejev-pilot-teacher/`, `imagejev-pilot-teacher-f05/`, `imagejev-pilot-teacher-seed1/`.
+
+**What this suggests for the next run (not yet tested):** fixing the checkpoint early (around step
+250-375) instead of selecting it on `val-tasks` may be what makes the "parity" result of pilot v3
+reproducible, and would trade away `test-images` accuracy for `test-tasks`. A direct test needs
+checkpoints saved at fixed steps; the loop currently keeps only the best and the last.
 
 ### Ablation: correction shrinkage strength (#35, partial)
 
