@@ -9,7 +9,16 @@ A small model that makes typed decisions (choice, score, yes/no) about an image 
 pass, with calibrated confidence, and that **follows written criteria it has never seen** better
 than the obvious cheap alternatives (SigLIP 2 zero-shot, a 500M VLM).
 
-## Verdict: not yet
+## Verdict: not yet (final for approach A: negative result)
+
+**Update, 2026-10-12.** The numbers in the paragraph below are from the first pilot. After the follow-up
+experiments (more task families, `correction_l2`, the teacher slice at 0/5/15%, multiple seeds, and
+snapshots every 125 steps; see the updates below), the best approach-A models reach *parity* with
+SigLIP 2 on unseen task families (about 0.42 vs 0.426 accuracy, log loss 1.15, ECE 0.08 vs 0.069),
+never a clear win, and the run-to-run spread (up to ~6 points of `test-tasks` accuracy for the same
+config) is larger than any effect found. Release criterion 1 therefore fails for approach A, no model
+is released, and the owner chose to publish this benchmark and negative result and move to approach B
+(epic #102).
 
 On task families never seen in training (`test-tasks`) the pilot model is **worse** than SigLIP 2
 zero-shot (accuracy 0.346 vs 0.426, ECE 0.148 vs 0.069), so release criteria 1 and 2 fail and,
@@ -106,12 +115,19 @@ Both steps from the list below were run on bench v2 (bench v1 plus eight fact-ba
 2. **Shrink the correction** (`correction_l2` > 0, dropout): cheap, already implemented, and aimed at
    exactly this failure. Compare on `val-tasks`.
 3. **Longer is not the answer:** more steps raised seen-task accuracy and left unseen tasks flat or
-   worse. Select early (the pilot's best was step 250).
+   worse. (Later: selecting early does not fix it either. In a within-run test, log loss and ECE rise
+   steadily with training and the best early checkpoint is only level with SigLIP.)
 4. If 1-3 do not move `test-tasks`, the spec's fallback is **approach B** (a small VLM used as the
    encoder, answers read from logits), which brings real text-image alignment instead of a prior.
 
-## Decisions waiting on you
+## Decisions
 
-- Whether to keep investing in approach A or switch to approach B. **Recommendation: switch to B**
-  (open the approach B epic, #42), for the reasons in the update above.
-- The final project name (#38) and whether to publish the benchmark and this write-up now.
+- **Direction (decided 2026-10-12): approach B.** Publish the benchmark and this negative result, stop
+  tuning approach A, and open the approach B epic (a small VLM used as the encoder, answers read from
+  logits): #102, with #103 (full-split baselines), #104 (light adaptation, at least 3 seeds per arm) and
+  #105 (release gate).
+- **Not decided / on hold:** the final project name (#38) and publishing weights, the package or the
+  dataset (#39-#41). They apply only once a model passes the gate; nothing has been published and no
+  name has been chosen.
+- **Still open for the owner:** hand-checking the teacher labels (#34), only worth doing if the teacher
+  slice is kept in a future run.
