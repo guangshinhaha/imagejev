@@ -210,8 +210,8 @@ For reference, SigLIP 2 zero-shot scores 0.426 / 1.153 / 0.069 on `test-tasks` (
 
 **The runs split into two groups, and the kept checkpoint step lines up with the split.** The two runs
 whose best checkpoint came early (step 250, 375) have the highest `test-tasks` accuracy (0.427, 0.442:
-level with SigLIP's 0.426 on accuracy, and with SigLIP-like ECE, 0.069 and 0.061 vs 0.069, but they
-are single runs and 0.442 is within about a point and a half of the late cluster's spread) and the
+0.427 is level with SigLIP's 0.426 and 0.442 is 1.6 points above it, both with SigLIP-like ECE, 0.069
+and 0.061 vs 0.069; but each is a single run) and the
 lowest `test-images` accuracy (about 0.59, below SigLIP's 0.606 on the v1-sized `test-images`
 split, which is not strictly comparable). The six runs whose best checkpoint came at step 750 or later
 all sit in a tight cluster at `test-tasks` 0.391-0.403 and `test-images` 0.677-0.693, with ECE higher on
