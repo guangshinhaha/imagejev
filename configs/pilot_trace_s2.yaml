@@ -1,0 +1,31 @@
+# No-teacher control on bench v3, seed 2, with test-tasks logged at every eval and a weights snapshot
+# every 125 steps, to see how the unseen-family score moves over training (#35).
+seed: 2
+device: auto
+steps: 1000
+eval_every: 125
+ckpt_every: 125
+images_per_batch: 16
+questions_per_image: 4
+teacher_fraction: 0.0
+lr_fusion: 3.0e-4
+lr_lora: 1.0e-4
+weight_decay: 0.01
+warmup_steps: 50
+grad_clip: 1.0
+lora_rank: 16
+lora_alpha: 32.0
+d_model: 512
+n_blocks: 4
+heads: 8
+train_file: data/bench_v3/splits/train.jsonl
+eval_files:
+  val: data/bench_v3/splits/val.jsonl
+  val-tasks: data/bench_v3/splits/val-tasks.jsonl
+  test-tasks: data/bench_v3/splits/test-tasks.jsonl   # logged only, never used for selection
+select_on: val-tasks   # unseen task families; the test families are never used for selection
+max_eval_questions: null
+cache_dir: data/cache_v1
+out_dir: runs/pilot_trace_s2
+correction_l2: 1.0
+snapshot_every: 125

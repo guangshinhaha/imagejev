@@ -290,3 +290,22 @@ def test_correction_penalty_shrinks_the_learned_correction_toward_the_prior(
     free, light, heavy = run(0.0, "free"), run(0.5, "light"), run(50.0, "heavy")
     assert free > 0.0  # logged even with the penalty off
     assert heavy < light < free  # a larger penalty leaves a smaller correction
+
+
+def test_snapshots_are_written_at_the_requested_interval_and_are_exportable(tmp_path):
+    from imagejev.backends.trained import export_model
+
+    tr = make_trainer(tmp_path / "run", steps=40, snapshot_every=20)
+    tr.run()
+    snaps = sorted(p.name for p in (tmp_path / "run").glob("snap-*.pt"))
+    assert snaps == ["snap-00020.pt", "snap-00040.pt"]
+    last, snap = tmp_path / "run" / "last.pt", tmp_path / "run" / "snap-00040.pt"
+    assert snap.stat().st_size < last.stat().st_size  # no optimizer state
+    out = export_model(snap, tmp_path / "model")
+    assert (out / "config.json").exists()
+
+
+def test_no_snapshots_by_default(tmp_path):
+    tr = make_trainer(tmp_path / "run", steps=20)
+    tr.run()
+    assert not list((tmp_path / "run").glob("snap-*.pt"))
