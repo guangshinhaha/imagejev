@@ -12,6 +12,12 @@ families it has never seen, and worse on the held-out test families**. By the pr
 (spec section 7.4, criterion 1) it is therefore **not a releasable model**, and no weights are
 published. The honest summary and what to try next are in `docs/results-v0.md`.
 
+**Later results (2026-10-13):** every follow-up on approach A (extra task families, `correction_l2`, the
+teacher slice, more seeds, fixed-step snapshots; sections below) ended at best indistinguishable from
+SigLIP 2 on unseen families, with worse calibration, and with run-to-run spread larger than any effect.
+The sections that follow report each experiment in turn; the final verdict and the move to approach B
+(#102) are in `docs/results-v0.md`.
+
 ## What is here
 
 | Folder | What |

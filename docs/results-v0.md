@@ -1,6 +1,7 @@
 # v0 results: what was built, what was found, what is not yet true
 
-Status as of the first complete benchmark (bench v1). Numbers are in `results/README.md`; this page
+Status as of 2026-10-13 (first written after the first complete benchmark, bench v1, and updated
+after the follow-up experiments). Numbers are in `results/README.md`; this page
 is the interpretation, written to be read by someone deciding what to do next.
 
 ## The claim being tested
@@ -13,12 +14,14 @@ than the obvious cheap alternatives (SigLIP 2 zero-shot, a 500M VLM).
 
 **Update, 2026-10-12.** The numbers in the paragraph below are from the first pilot. After the follow-up
 experiments (more task families, `correction_l2`, the teacher slice at 0/5/15%, multiple seeds, and
-snapshots every 125 steps; see the updates below), the best approach-A models reach *parity* with
-SigLIP 2 on unseen task families (about 0.42 vs 0.426 accuracy, log loss 1.15, ECE 0.08 vs 0.069),
-never a clear win, and the run-to-run spread (up to ~6 points of `test-tasks` accuracy for the same
+snapshots every 125 steps; see the updates below), the best approach-A models are at most
+indistinguishable from SigLIP 2 on unseen task families on accuracy and log loss (best fixed step, picked
+after the fact: 0.418 vs 0.426 accuracy, 1.147 vs 1.153 log loss) with worse calibration (ECE 0.082 vs
+0.069, which alone fails criterion 1); the models kept by normal `val-tasks` selection sit lower still
+(accuracy 0.39-0.40, ECE 0.12-0.15). Never a clear win, and the run-to-run spread (up to ~6 points of `test-tasks` accuracy for the same
 config) is larger than any effect found. Release criterion 1 therefore fails for approach A, no model
-is released, and the owner chose to publish this benchmark and negative result and move to approach B
-(epic #102).
+is released, and the owner chose to record this benchmark and negative result in the repository
+(this page and `results/README.md`; nothing was published elsewhere) and move to approach B (epic #102).
 
 On task families never seen in training (`test-tasks`) the pilot model is **worse** than SigLIP 2
 zero-shot (accuracy 0.346 vs 0.426, ECE 0.148 vs 0.069), so release criteria 1 and 2 fail and,
@@ -64,16 +67,18 @@ by the rule in the spec (section 7.4), **no model weights are published**. What 
 
 ## What is not done
 
-- **#33** the Qwen2.5-VL-7B teacher run (the machinery is tested; the run needs a 15 GB download and
-  hours of GPU time).
+- **#33** the teacher run is done (6,999 questions labelled); the slice showed no effect distinguishable
+  from run-to-run variation (see `results/README.md`).
 - **#34** the hand-check of teacher labels (needs a person).
-- **#35 / #36** the remaining ablations (prior on/off, LoRA, text encoder) and a long final run. The
-  `correction_l2` sweep and the extra task families are done (see the update below).
-- **#30** nothing has run on Kaggle; **#20** no T4 latency.
-- **#24** decided: criterion 3 is now the per-domain bar in spec §7.4 (every domain at least the better baseline, warm latency at most one tenth of the VLM's); thresholds are read off the final benchmark (#36).
+- **#35 / #36** the remaining ablations (64 vs 144 image tokens, square vs NaFlex, option mixing) and a
+  long final run are not planned for approach A. The `correction_l2` sweep, extra task families, teacher
+  share, seeds and checkpoint-step test are done (see the updates below).
+- **#30** nothing has run on Kaggle; **#20** (T4 latency) was closed as skipped.
+- **#24** decided: criterion 3 is now the per-domain bar in spec §7.4 (every domain at least the better baseline, warm latency at most one tenth of the VLM's); thresholds are read off the full-split baseline runs (#103).
 - Release criterion 4 (option-shuffle invariance) is guaranteed and tested at the model level for
   choice and bool, but has not been run as a benchmark on the trained model.
-- **#38-#42** naming and publishing need the owner's decisions and credentials.
+- **#38-#41** naming and publishing need the owner's decisions and credentials, and are on hold until
+  a model passes the gate (#105). **#42** (this write-up) is closed.
 
 ## Update: the first two next steps were tried (pilots v2, v3, v4)
 
@@ -122,8 +127,8 @@ Both steps from the list below were run on bench v2 (bench v1 plus eight fact-ba
 
 ## Decisions
 
-- **Direction (decided 2026-10-12): approach B.** Publish the benchmark and this negative result, stop
-  tuning approach A, and open the approach B epic (a small VLM used as the encoder, answers read from
+- **Direction (decided 2026-10-12): approach B.** Record the benchmark and this negative result in the
+  repository (nothing is published elsewhere), stop tuning approach A, and open the approach B epic (a small VLM used as the encoder, answers read from
   logits): #102, with #103 (full-split baselines), #104 (light adaptation, at least 3 seeds per arm) and
   #105 (release gate).
 - **Not decided / on hold:** the final project name (#38) and publishing weights, the package or the
