@@ -237,12 +237,41 @@ hand-checked (#34); six of the eight runs are on bench v3 and two controls on v2
 `imagejev-pilot-v3-on-v3/`, `imagejev-pilot-v3-seed1-on-v3/`, `imagejev-pilot-ctl-v3-s0/`, `-s1/`,
 `-s2/`, `imagejev-pilot-teacher/`, `imagejev-pilot-teacher-f05/`, `imagejev-pilot-teacher-seed1/`.
 
-**Next test (not yet run):** train the control with `test-tasks` logged at every evaluation and see
-whether the score of one run really moves with training, rather than comparing across runs. If it
-does, an early stop would trade roughly 10 points of `test-images` accuracy (about 0.69 to 0.59) for
-`test-tasks` accuracy at about SigLIP's level. That is parity, not a win over the baseline (criteria 1-2
-need a win), so it would not by itself pass the gate. One possible reason is that an early checkpoint
-has barely moved off the SigLIP prior.
+**This was tested; see the next subsection.**
+
+#### Unseen-family score over training (fixed-step snapshots, #35)
+
+Three no-teacher controls on bench v3 (`configs/pilot_trace_s{0,1,2}.yaml`, seeds 0-2) were trained
+with `snapshot_every: 125`, which keeps a weights-only snapshot every 125 steps, and with `test-tasks`
+logged (never used for selection) at every evaluation. Each snapshot was then benchmarked the standard
+way (calibrated on `val-tasks`). `test-tasks`, all-domain, accuracy / log loss / ECE:
+
+| step | seed 0 | seed 1 | seed 2 | mean |
+|---|---|---|---|---|
+| 125 | 0.428 / 1.137 / 0.071 | 0.414 / 1.150 / 0.083 | 0.412 / 1.155 / 0.092 | 0.418 / 1.147 / 0.082 |
+| 250 | 0.411 / 1.151 / 0.103 | 0.399 / 1.163 / 0.109 | 0.391 / 1.169 / 0.128 | 0.400 / 1.161 / 0.113 |
+| 1000 | 0.396 / 1.190 / 0.140 | 0.393 / 1.179 / 0.137 | 0.391 / 1.197 / 0.152 | 0.393 / 1.189 / 0.143 |
+| SigLIP 2 zero-shot | | | | 0.426 / 1.153 / 0.069 |
+
+(The raw, uncalibrated per-evaluation curves in `runs/pilot_trace_s*/eval_log.csv`, not committed, show
+the same shape. Reports: `imagejev-trace_s<seed>_<step>/`.)
+
+**Within a run, the unseen-family score gets worse as training goes on, on every metric, in all three
+seeds.** From step 125 to step 1000, accuracy falls by 2.1-3.2 points (mean 2.5), log loss rises by
+0.03-0.05 and ECE rises 1.7-2 times. This is consistent with the between-run pattern above (runs that
+kept an early checkpoint scored higher on `test-tasks`). It also fits the earlier finding that the
+learned correction adds nothing on unseen families: the longer it trains, the further it moves the
+model from the SigLIP prior in a direction that does not transfer.
+
+**It never beats the baseline.** The best point, step 125, is about level with SigLIP: accuracy 0.418 vs
+0.426 (below), log loss 1.147 vs 1.153 (slightly better), ECE 0.082 vs 0.069 (worse). So stopping early
+recovers parity at best, not the win that release criteria 1-2 require, and costs seen-family accuracy
+(`test-images` accuracy was about 0.59 for the early-kept runs against 0.68-0.69 for the late ones).
+Limits: three seeds, one recipe (`correction_l2: 1.0`, no teacher slice); only steps 125, 250 and 1000
+were benchmarked; and with the cosine schedule "step 125" is a model that has barely left warm-up,
+not a short run. The traces' kept step differs from the earlier control runs with the same seeds
+(for example seed 2 kept step 875 here and step 375 before), because changing the evaluation sets
+changes the run, so a seed is not one fixed trajectory.
 
 ### Ablation: correction shrinkage strength (#35, partial)
 
