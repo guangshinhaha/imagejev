@@ -89,7 +89,7 @@ See [docs/data-licenses.md](docs/data-licenses.md), including the decisions that
 
 ## Known gaps
 
-No Kaggle run yet; the teacher slice and a few ablations were run but with one or two seeds each, so
-no effect is clearly outside seed variation; the
+No Kaggle run yet; the teacher slice and a few ablations were run but with two or three seeds each, so
+most differences are within the (large) run-to-run variation; the
 accuracy bar is decided (#24) but its thresholds are only read off the final benchmark run (#36). [docs/results-v0.md](docs/results-v0.md) lists them
 with the next steps.
