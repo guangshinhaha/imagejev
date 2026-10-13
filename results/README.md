@@ -25,6 +25,7 @@ The sections that follow report each experiment in turn; the final verdict and t
 | `siglip2-zeroshot/` | the zero-shot baseline, full splits |
 | `imagejev-pilot-v1/` | the pilot model, full splits (`gate_val.md`, `gate_test-tasks.md` are the gate reports) |
 | `siglip2-zeroshot-v3/`, `smolvlm-500m-v3/` | the two baselines on the **bench v3** splits (full splits except `test-styles`), the source of the spec §7.4 criterion 3 thresholds (#103) |
+| `subset300-v3/` | SigLIP 2, SmolVLM-500M and SmolVLM-2B on **identical** bench v3 subsets of at most 300 images per split (`val-tasks`, `test-images`, `test-tasks`) |
 | `subset300/` | all three models (adding SmolVLM-500M) on **identical** subsets of at most 300 images per split |
 | `bench_v1_splits_report.json` | sizes of every split and which held-out families are thin |
 | `archive-bench-v0/` | superseded first run, kept for provenance only |
@@ -217,7 +218,55 @@ Per-domain `test-images` accuracy, SigLIP / SmolVLM: photo 0.516 / 0.481, docume
 screenshot 0.600 / 0.445. SigLIP is the stronger baseline in every domain on both splits, at about
 1/50 of the latency (warm p50 0.9 ms vs 44.6 ms; the earlier subset run measured SmolVLM at 109.7 ms, so
 latency should always be compared within one session). These are the baselines for spec §7.4 criterion 3
-(thresholds now written there).
+(thresholds now written there). The table above is assembled by hand from the `report.md` files.
+
+### Second candidate: SmolVLM-2B on a bench v3 subset (#103)
+
+SmolVLM-2B is too slow for the full splits on the Mac, so all three models ran on the **same fixed subset**
+of at most 300 images per split (`--max-images 300`) of the bench v3 `val-tasks`, `test-images` and
+`test-tasks`, calibrated on the subset's `val-tasks` (`subset300-v3/`). `test-tasks` is 395 questions and
+`test-images` 1,489, so every number carries a wide margin: roughly +/-2.5 points of accuracy at the
+`test-tasks` size (binomial standard error), larger per domain (89-182 questions each). Accuracy / log loss / ECE:
+
+| split | SigLIP 2 zero-shot | SmolVLM-500M | SmolVLM-2B |
+|---|---|---|---|
+| `test-tasks`, all | 0.415 / 1.166 / 0.070 | 0.327 / 1.271 / 0.062 | **0.476 / 1.125 / 0.051** |
+| `test-tasks`, photo | 0.562 / 1.219 / 0.146 | 0.348 / 1.238 / 0.147 | 0.663 / 0.833 / 0.099 |
+| `test-tasks`, document | 0.476 / 1.024 / 0.058 | 0.363 / 1.333 / 0.097 | 0.331 / 1.220 / 0.157 |
+| `test-tasks`, screenshot | 0.302 / 1.237 / 0.091 | 0.291 / 1.246 / 0.108 | 0.484 / 1.204 / 0.142 |
+| `test-images`, all | 0.532 / 0.891 / 0.043 | 0.461 / 1.000 / 0.068 | 0.518 / 0.953 / 0.080 |
+| `test-images`, photo | 0.497 | 0.473 | 0.540 |
+| `test-images`, document | 0.507 | 0.464 | 0.531 |
+| `test-images`, screenshot | 0.573 | 0.451 | 0.494 |
+| warm p50 latency | 0.8 ms | 44.2 ms | 112.1 ms |
+
+- **SmolVLM-2B is ahead of SigLIP on unseen task families** on all three all-domain metrics
+  (`test-tasks`: +6 points accuracy, 0.04 lower log loss, lower ECE), driven by photo (0.663 vs 0.562) and
+  screenshot (0.484 vs 0.302). Two qualifiers: two earlier approach A runs were nominally ahead on all
+  three as well (for example 0.442 / 1.145 / 0.061, see the teacher-slice section), and did not
+  reproduce; and this is also a single draw on a small subset.
+- **It would not pass the release criteria as it stands.** Criterion 1 (lower log loss *and* ECE than
+  SigLIP in every `test-tasks` domain) fails in two domains: documents on both (1.220 / 0.157 vs 1.024 /
+  0.058) and screenshots on ECE (0.142 vs 0.091; its log loss is better, 1.204 vs 1.237); photos pass
+  both. Criterion 2 (no domain below SigLIP's accuracy on any test split) fails on `test-tasks`
+  documents (0.331 vs 0.476) and on `test-images` screenshots (0.494 vs 0.573), which is also below the
+  criterion 3 accuracy bar for that domain.
+- **How much to trust the lead.** One standard error of accuracy at the `test-tasks` size is about 2.5
+  points (a 95% interval is about +/-5), so the 6-point gap is roughly 1.7 standard errors if the
+  comparison is treated as unpaired, and about 1.7-2.2 if paired and the two models disagree on 30-50%
+  of questions. Clustering by image and task family makes the real uncertainty larger, and the committed
+  `results.json` files hold only aggregates, so the paired figure cannot be recomputed from them. Read it
+  as suggestive: it needs the full split before it is trusted.
+- On seen families (`test-images`) it is level with SigLIP on accuracy overall (0.518 vs 0.532; better
+  on photo and document, worse on screenshots) but worse on log loss (0.953 vs 0.891) and ECE (0.080
+  vs 0.043).
+- SmolVLM-500M is below SigLIP almost everywhere, as on the full splits.
+- **Latency:** 112 ms warm is about 2.5x the 500M baseline, so a model that simply is the 2B VLM fails
+  the latency clause of criterion 3 by a wide margin (the bar is one tenth of the 500M's, about 4.4 ms).
+  It is informative as an upper bound for approach B and possibly as a teacher, not as a releasable
+  model. The full-split 2B run has not been done.
+- This table, like the baselines section above it, is assembled by hand from the `report.md` files
+  rather than generated by `compare`.
 
 ### Ablation: teacher slice, and what actually drives the run-to-run variation (#33, #35, partial)
 
