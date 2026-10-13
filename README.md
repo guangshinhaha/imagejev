@@ -92,5 +92,5 @@ See [docs/data-licenses.md](docs/data-licenses.md), including the decisions that
 
 No Kaggle run yet; the teacher slice and a few ablations were run but with two or three seeds each, so
 most differences are within the (large) run-to-run variation; the
-accuracy bar is decided (#24) but its thresholds are only read off the full-split baseline runs (#103). [docs/results-v0.md](docs/results-v0.md) lists them
+accuracy bar is decided (#24) and its thresholds are read off the full-split baseline runs (#103, spec §7.4). [docs/results-v0.md](docs/results-v0.md) lists them
 with the next steps.

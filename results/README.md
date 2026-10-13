@@ -192,6 +192,23 @@ accuracy below SigLIP (0.426) with ECE 0.135 vs 0.069. The difference comes from
 loop kept (step 250 for the parity run, 875 for this one); see the teacher-slice section below. (The runs use test sets of 2,492 and 2,495 questions.) Full reports: `imagejev-pilot-v2/`, `imagejev-pilot-v3/`. Configs: `configs/pilot_v2.yaml`,
 `configs/pilot_v3.yaml`.
 
+### Full-split baselines on bench v3 (#103)
+
+SigLIP 2 zero-shot and SmolVLM-500M over the full bench v3 `val`, `val-tasks`, `test-images`, `test-tasks`
+and `test-external` splits (not `test-styles`), both calibrated on `val-tasks`, same MacBook / MPS.
+Reports: `siglip2-zeroshot-v3/`, `smolvlm-500m-v3/`. All-domain, accuracy / log loss / ECE:
+
+| split | SigLIP 2 zero-shot | SmolVLM-500M |
+|---|---|---|
+| `test-images` (9,336 q) | 0.545 / 0.877 / 0.036 | 0.467 / 1.000 / 0.050 |
+| `test-tasks` (2,492 q) | 0.427 / 1.152 / 0.067 | 0.314 / 1.276 / 0.067 |
+
+Per-domain `test-images` accuracy, SigLIP / SmolVLM: photo 0.516 / 0.481, document 0.503 / 0.482,
+screenshot 0.600 / 0.445. SigLIP is the stronger baseline in every domain on both splits, at about
+1/50 of the latency (warm p50 0.9 ms vs 44.6 ms; the earlier subset run measured SmolVLM at 109.7 ms, so
+latency should always be compared within one session). These are the baselines for spec §7.4 criterion 3
+(thresholds now written there).
+
 ### Ablation: teacher slice, and what actually drives the run-to-run variation (#33, #35, partial)
 
 Pilot v3's recipe (1,000 steps, `correction_l2: 1.0`), with and without the Qwen2.5-VL-7B teacher slice
@@ -265,7 +282,8 @@ all-domain, mean over the three seeds with the range in brackets:
 | 1000 | 0.393 (0.391-0.396) | 1.189 (1.179-1.197) | 0.143 (0.137-0.152) |
 | SigLIP 2 zero-shot | 0.426 | 1.153 | 0.069 |
 
-(SigLIP's row uses the 2,495-question v2 `test-tasks`; the traces use 2,492.)
+(SigLIP's row uses the 2,495-question v2 `test-tasks`; the traces use 2,492, on which SigLIP scores
+0.427 / 1.152 / 0.067, see the baselines section above.)
 
 **Log loss and ECE get worse as training goes on, in all three seeds; accuracy drops after step 125
 and then stays roughly flat.** From step 125 to step 1000 the mean log loss rises by 0.04 (1.147 to
