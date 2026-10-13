@@ -24,6 +24,7 @@ The sections that follow report each experiment in turn; the final verdict and t
 |---|---|
 | `siglip2-zeroshot/` | the zero-shot baseline, full splits |
 | `imagejev-pilot-v1/` | the pilot model, full splits (`gate_val.md`, `gate_test-tasks.md` are the gate reports) |
+| `siglip2-zeroshot-v3/`, `smolvlm-500m-v3/` | the two baselines on the **bench v3** splits (full splits except `test-styles`), the source of the spec §7.4 criterion 3 thresholds (#103) |
 | `subset300/` | all three models (adding SmolVLM-500M) on **identical** subsets of at most 300 images per split |
 | `bench_v1_splits_report.json` | sizes of every split and which held-out families are thin |
 | `archive-bench-v0/` | superseded first run, kept for provenance only |
@@ -195,7 +196,16 @@ loop kept (step 250 for the parity run, 875 for this one); see the teacher-slice
 ### Full-split baselines on bench v3 (#103)
 
 SigLIP 2 zero-shot and SmolVLM-500M over the full bench v3 `val`, `val-tasks`, `test-images`, `test-tasks`
-and `test-external` splits (not `test-styles`), both calibrated on `val-tasks`, same MacBook / MPS.
+and `test-external` splits, both calibrated on `val-tasks`, same MacBook / MPS (the machine is not recorded
+in `results.json`). `test-styles` (33,005 questions, about 5,800 images) was not run, to save time: the
+only SigLIP baseline there is the bench v1 one, so it must be re-run on bench v3 before the final gate (#105).
+Bench v3 is a different benchmark from v1: its `test-images` has 9,336 questions instead of 6,732 (it added the
+fact-based families), so **these numbers supersede and are not comparable with the bench v1 per-domain
+numbers elsewhere in this file** (for example SigLIP `test-images` photo/document/screenshot was
+0.585 / 0.595 / 0.629 on v1 and is 0.516 / 0.503 / 0.600 here). `test-tasks` moved by three questions
+(2,495 to 2,492; 1,901 images instead of 1,900) when bench v3 was rebuilt with the teacher records, which
+is why SigLIP's `test-tasks` shifts slightly (0.426 / 1.153 / 0.069 to 0.427 / 1.152 / 0.067); the reason the
+split changed was not investigated.
 Reports: `siglip2-zeroshot-v3/`, `smolvlm-500m-v3/`. All-domain, accuracy / log loss / ECE:
 
 | split | SigLIP 2 zero-shot | SmolVLM-500M |

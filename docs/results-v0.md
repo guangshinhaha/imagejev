@@ -30,7 +30,7 @@ by the rule in the spec (section 7.4), **no model weights are published**. What 
 - On tasks it trained on, with unseen images or unseen page/document styles, it is clearly better:
   accuracy +4 to +12 points in every domain and lower log loss everywhere.
 - It runs one image in about 45-75 ms cold and about 6-11 ms for each extra question on the same
-  image; SigLIP zero-shot is about 1 ms warm and the 500M VLM about 70-110 ms warm.
+  image; SigLIP zero-shot is about 1 ms warm and the 500M VLM about 45-110 ms warm (it varies between sessions).
 - On real external data (Oxford Pets, CORD-v2 receipts, ScreenSpot) it is marginally better than
   SigLIP (0.875 vs 0.867), within noise for the smaller domains.
 
